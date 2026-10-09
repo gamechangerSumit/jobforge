@@ -67,3 +67,14 @@ export const hasStarted = (iso: string, now = Date.now()) => new Date(iso).getTi
 export function isHttpUrl(value: string): boolean {
   return /^https?:\/\/\S+$/i.test(value.trim());
 }
+
+const FALLBACK_ZONES = ['UTC', 'Asia/Kolkata', 'Asia/Dubai', 'Asia/Singapore', 'Europe/London', 'Europe/Berlin', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Australia/Sydney'];
+
+/** IANA zone names for the time-zone suggestions (browser list when available, small fallback otherwise). */
+export function timeZoneOptions(): string[] {
+  try {
+    const supported = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf?.('timeZone');
+    if (supported && supported.length > 0) return supported.includes('UTC') ? supported : ['UTC', ...supported];
+  } catch { /* fall through */ }
+  return FALLBACK_ZONES;
+}

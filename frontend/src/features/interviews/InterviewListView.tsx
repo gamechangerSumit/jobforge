@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Select } from '@/components/ui/Select';
 import { useInterviewList } from './hooks';
 import { InterviewCard } from './InterviewCard';
+import { InterviewLoadError, InterviewLoading } from './InterviewState';
 import type { InterviewStatus } from '@/types/interviews';
 
 const statuses: InterviewStatus[] = ['SCHEDULED', 'CONFIRMED', 'DECLINED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
@@ -25,11 +26,11 @@ export function InterviewListView({ role }: { role: 'RECRUITER' | 'JOB_SEEKER' }
           </Select>
         </div>
       </div>
-      {q.isLoading && <p className="mt-6">Loading interviews…</p>}
-      {q.isError && <p role="alert" className="mt-6 text-red-600">Interviews could not be loaded.</p>}
+      {q.isLoading && <InterviewLoading label="Loading interviews…" />}
+      {q.isError && <InterviewLoadError error={q.error} fallback="Interviews could not be loaded." onRetry={() => void q.refetch()} retrying={q.isFetching} />}
       <div className="mt-6 space-y-3">
         {q.data?.items.map((i) => <InterviewCard key={i.id} interview={i} role={role} />)}
-        {q.data && q.data.items.length === 0 && <p>{role === 'RECRUITER' ? 'No interviews yet. Schedule one from a shortlisted application.' : 'No interviews yet.'}</p>}
+        {q.data && q.data.items.length === 0 && <p data-testid="interviews-empty">{role === 'RECRUITER' ? 'No interviews yet. Schedule one from a shortlisted application.' : 'No interviews yet.'}</p>}
       </div>
       {totalPages > 1 && (
         <div className="mt-6 flex items-center gap-3 text-sm">

@@ -29,3 +29,31 @@
 
 ## Session 1 - Interviews (not built/run)
 Recruiter and seeker interview pages, schedule/reschedule/cancel/complete/respond UI (RHF+Zod, TanStack Query, lib/api only), time-zone helpers; tests interview-time, interview-schema, InterviewCard. See HANDOFF revision 10.
+
+## Session 2B - Interviews frontend (static audit + gap fill; nothing built, run or tested)
+**Starting point:** the uploaded repository already contained the interview frontend recorded above as "Session 1 - Interviews" (types, `lib/api/interviews.ts`, RHF+Zod form, TanStack Query hooks, recruiter and seeker pages, card with respond/cancel/complete/reschedule, `ApplicationInterviewsPanel`, time helpers, three tests, one Playwright spec). 2B did not rewrite it. It read the code against API_CONTRACT §12.7 and `docs/status/backend.md` (Session 2A) and closed the gaps below. Backend untouched.
+
+**Requirement check**
+- Recruiter management page `/recruiter/interviews` (+ `/recruiter/interviews/[id]`, panel on `/recruiter/applications/[id]`) and seeker pages `/interviews`, `/interviews/[id]`: present, role layouts use `RoleGuard` (UX only; the API enforces access).
+- Schedule and reschedule form (`InterviewForm`, RHF + Zod, server field errors mapped), respond (confirm/decline with note), cancel (reason dialog), complete/no-show: present. All calls go through `lib/api/interviews.ts` and TanStack Query hooks; no `fetch` in components.
+
+**Changed in 2B**
+- New `features/interviews/InterviewState.tsx`: shared loading (`role="status"`), error panel with **Try again**, and `isNotFound`. Used by the list, detail and application panel. Before, load errors had no retry. A 404 on the detail page stays "not found or unavailable" without a retry (the API answers 404 for missing and foreign ids alike). Detail page also got a back link.
+- `InterviewListView`: retry on error, server message shown, `data-testid` on the empty state.
+- `lib/validation/interviews.ts` `buildUpdatePayload`: scheduled time is compared at minute precision. Previously an interview stored with seconds looked "changed" on an unchanged save, sending `scheduledAt` and resetting the candidate's answer.
+- New MSW handlers `src/mocks/interviewHandlers.ts` (registered in `mocks/handlers.ts`, reset by `resetMockState`, role via new `setMockRole`): list with query whitelist, detail, schedule, patch (reschedule resets answer, notes-only edit does not), cancel, respond, complete; role split, seeker view without `seeker`/`notes`, 400/403/404/409/422 shapes as in the contract.
+- New tests (source only, not executed): `tests/components/InterviewListView.test.tsx`, `InterviewDetailView.test.tsx`, `InterviewForm.test.tsx`, `ApplicationInterviewsPanel.test.tsx`, `InterviewActions.test.tsx`; helpers in `tests/interview-test-utils.tsx`; one new case in `tests/unit/interview-schema.test.ts`. They use the real `lib/api` client against the MSW node server. Existing `InterviewCard.test.tsx`, `interview-time.test.ts`, `tests/e2e/interviews.spec.ts` kept.
+- Static check done: every `@/` and relative import in the new and changed files resolves. No typecheck, lint, test or build was run.
+
+**Not completed / remaining**
+- Run, in order: `pnpm typecheck`, `pnpm lint`, `pnpm test` (new component tests are unverified; selectors such as the reason `<dialog>` and the `Confirm`/`Confirmed` button names may need small fixes), then `pnpm test:e2e` for `interviews.spec.ts`.
+- `Interview` types are hand-written (API_CONTRACT §12.7 prose + backend views); replace with generated types after `pnpm gen:api`.
+- Time zone is a free text IANA field (validated); a zone picker would be friendlier.
+- A seeker whose interview was declined, cancelled or started sees no action and no explanation beyond the status badge; copy is a design decision.
+- Calendar view, ICS export and reminders are not in the contract and were not built. Notification wording for interview events is owned by the notification module.
+- Backend carry-forwards from 2A (no audit for reschedule/respond/complete, non-atomic overlap check, admin read access) are unchanged.
+
+### Session 2B follow-up (still not built, run or tested)
+- Time zone field now suggests IANA zones through a `<datalist>` (`timeZoneOptions()` in `lib/interviews/time.ts`, browser list with a small fallback); free text is still validated by Zod. Tests: `interview-time.test.ts`, `InterviewForm.test.tsx`.
+- Seekers now get a plain-language note when they have no buttons (cancelled, over, declined, already started); closed applications keep the existing banner. Test in `InterviewCard.test.tsx`.
+- Still open: run typecheck/lint/test/e2e (not allowed in these sessions); replace hand-written types after `pnpm gen:api`; calendar view, ICS export and reminders (not in the contract, not invented).

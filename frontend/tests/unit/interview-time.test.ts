@@ -32,3 +32,11 @@ test('only http(s) values become links', () => {
   expect(isHttpUrl('javascript:alert(1)')).toBe(false);
   expect(isHttpUrl('Floor 3, HQ')).toBe(false);
 });
+
+test('timeZoneOptions offers valid IANA zones including UTC', async () => {
+  const { timeZoneOptions, isValidTimeZone } = await import('@/lib/interviews/time');
+  const zones = timeZoneOptions();
+  expect(zones).toContain('UTC');
+  expect(zones.length).toBeGreaterThan(5);
+  expect(zones.every((z) => isValidTimeZone(z))).toBe(true);
+});

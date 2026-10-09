@@ -38,7 +38,8 @@ export function buildUpdatePayload(v: InterviewFormOutput, current: Interview): 
   const next = buildSchedulePayload(v);
   const patch: UpdateInterviewRequest = {};
   if (next.type !== current.type) patch.type = next.type;
-  if (new Date(next.scheduledAt).getTime() !== new Date(current.scheduledAt).getTime()) patch.scheduledAt = next.scheduledAt;
+  // The form has minute precision: an interview stored with seconds must not look "changed" (which would reset the candidate's answer).
+  if (Math.floor(new Date(next.scheduledAt).getTime() / 60_000) !== Math.floor(new Date(current.scheduledAt).getTime() / 60_000)) patch.scheduledAt = next.scheduledAt;
   if (next.durationMinutes !== current.durationMinutes) patch.durationMinutes = next.durationMinutes;
   if (next.timezone !== current.timezone) patch.timezone = next.timezone;
   if (next.locationOrLink !== (current.locationOrLink ?? '')) patch.locationOrLink = next.locationOrLink;

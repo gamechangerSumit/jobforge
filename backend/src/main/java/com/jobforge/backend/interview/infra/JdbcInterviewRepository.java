@@ -65,13 +65,14 @@ public class JdbcInterviewRepository implements InterviewRepository {
                        location_or_link = :loc, status = :status, seeker_response = :response,
                        seeker_response_note = :responseNote, internal_notes = :notes, cancelled_reason = :cancelled,
                        updated_at = :now
-                 WHERE id = :id AND status = :expected
+                 WHERE id = :id AND status = :expected AND updated_at = :previousUpdatedAt
                 """)
                 .param("type", n.type().name()).param("at", Db.ts(n.scheduledAt())).param("duration", n.durationMinutes())
                 .param("tz", n.timezone()).param("loc", n.locationOrLink()).param("status", n.status().name())
                 .param("response", n.seekerResponse().name()).param("responseNote", n.seekerResponseNote())
                 .param("notes", n.internalNotes()).param("cancelled", n.cancelledReason()).param("now", Db.ts(now))
-                .param("id", n.id()).param("expected", expectedStatus.name()).update() == 1;
+                .param("id", n.id()).param("expected", expectedStatus.name()).param("previousUpdatedAt", Db.ts(n.updatedAt()))
+                .update() == 1;
     }
 
     @Override
@@ -83,6 +84,10 @@ public class JdbcInterviewRepository implements InterviewRepository {
 
     @Override
     public boolean existsActiveOverlap(UUID applicationId, Instant start, Instant end, UUID excludeInterviewId) {
+        // Serialises "check, then insert/update" per application until the surrounding transaction ends, so two
+        // simultaneous requests cannot both pass the check (the table has no exclusion constraint and the schema is fixed).
+        jdbc.sql("SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtextextended(CAST(:app AS text), 0))) AS l")
+                .param("app", applicationId).query(Integer.class).single();
         String exclude = excludeInterviewId == null ? "" : " AND id <> :exclude";
         var statement = jdbc.sql("""
                 SELECT EXISTS (

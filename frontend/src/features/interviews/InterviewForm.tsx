@@ -1,12 +1,12 @@
 'use client';
-import { useId, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { errorMessage, fieldErrors } from '@/lib/api/errors';
-import { defaultTimeZone, instantToZoned } from '@/lib/interviews/time';
+import { defaultTimeZone, instantToZoned, timeZoneOptions } from '@/lib/interviews/time';
 import {
   buildSchedulePayload, buildUpdatePayload, formDefaultsFor, interviewFormSchema, type InterviewFormInput, type InterviewFormOutput,
 } from '@/lib/validation/interviews';
@@ -26,6 +26,7 @@ export function InterviewForm(props: Props) {
   const schedule = useScheduleInterview(props.mode === 'schedule' ? props.applicationId : '');
   const update = useUpdateInterview(interview?.id ?? '');
   const [serverError, setServerError] = useState('');
+  const zones = useMemo(() => timeZoneOptions(), []);
   const form = useForm<InterviewFormInput, unknown, InterviewFormOutput>({
     resolver: zodResolver(interviewFormSchema),
     defaultValues: interview
@@ -69,7 +70,8 @@ export function InterviewForm(props: Props) {
         <div><label htmlFor={`${id}-time`} className={label}>Time</label>
           <Input id={`${id}-time`} type="time" {...register('time')} />{err(errors.time?.message)}</div>
         <div className="md:col-span-2"><label htmlFor={`${id}-tz`} className={label}>Time zone</label>
-          <Input id={`${id}-tz`} placeholder="Asia/Kolkata" {...register('timezone')} />{err(errors.timezone?.message)}</div>
+          <Input id={`${id}-tz`} list={`${id}-tzlist`} autoComplete="off" placeholder="Start typing, e.g. Asia/Kolkata" {...register('timezone')} />
+          <datalist id={`${id}-tzlist`}>{zones.map((z) => <option key={z} value={z} />)}</datalist>{err(errors.timezone?.message)}</div>
         <div className="md:col-span-2"><label htmlFor={`${id}-loc`} className={label}>Meeting link or address</label>
           <Input id={`${id}-loc`} placeholder="https://meet.example.com/… or office address" {...register('locationOrLink')} />{err(errors.locationOrLink?.message)}</div>
         <div className="md:col-span-2"><label htmlFor={`${id}-notes`} className={label}>Internal notes <span className="font-normal text-slate-500">(only your team sees these)</span></label>
