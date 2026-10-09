@@ -1,0 +1,16 @@
+# Local development. Loads the git-ignored repo-root .env (copy of .env.example) when the backend
+# is started from ./backend (mvn spring-boot:run). Real environment variables still take precedence.
+spring:
+  config:
+    import: optional:file:../.env[.properties]
+
+logging:
+  pattern:
+    level: "%5p [%X{requestId:-}]"
+  level:
+    com.jobforge: DEBUG
+
+# Browsers may be opened via 127.0.0.1 as well as localhost; both are different CORS origins.
+jobforge:
+  security:
+    cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}

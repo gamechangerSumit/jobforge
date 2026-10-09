@@ -1,0 +1,27 @@
+name: ai-ci
+on:
+  pull_request:
+    paths: ['ai-service/**', '.github/workflows/ai-ci.yml']
+  push:
+    branches: [develop, main]
+    paths: ['ai-service/**']
+concurrency:
+  group: ai-ci-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ai-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: mvn -B -ntp verify

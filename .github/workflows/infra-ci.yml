@@ -1,0 +1,41 @@
+name: infra-ci
+on:
+  pull_request:
+    paths: ['infrastructure/**', 'docker-compose.yml', '**/Dockerfile', '.env.example', '.github/workflows/infra-ci.yml']
+concurrency:
+  group: infra-ci-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose files are valid (all profiles, placeholder secrets)
+        run: |
+          cp .env.example .env
+          for v in POSTGRES_PASSWORD DB_MIGRATION_PASSWORD DB_PASSWORD AI_DB_PASSWORD AI_INTERNAL_TOKEN; do
+            grep -q "^$v=" .env || echo "$v=ci-placeholder" >> .env
+          done
+          docker compose --profile app --profile tools --profile monitoring --profile storage --profile ollama config -q
+      - name: shellcheck
+        run: shellcheck infrastructure/scripts/*.sh infrastructure/kafka/*.sh
+      - name: hadolint (backend)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: backend/Dockerfile
+          failure-threshold: error
+      - name: hadolint (frontend)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: frontend/Dockerfile
+          failure-threshold: error
+      - name: hadolint (ai-service)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ai-service/Dockerfile
+          failure-threshold: error
+      - name: Build images
+        run: docker compose --profile app build

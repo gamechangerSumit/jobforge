@@ -1,0 +1,4 @@
+'use client';
+import Link from 'next/link';
+import { useSession } from '@/lib/auth/session';
+export default function DashboardPage() { const { user } = useSession(); return <div className="mx-auto max-w-6xl px-4 py-10"><h1 className="text-3xl font-black">Welcome{user ? `, ${user.firstName}` : ''}</h1><div className="mt-8 grid gap-4 md:grid-cols-3"><Link href="/jobs" className="rounded-2xl border bg-white p-6"><b>Find jobs</b><p className="mt-2 text-sm text-slate-600">Search and apply to published jobs.</p></Link><Link href="/saved-jobs" className="rounded-2xl border bg-white p-6"><b>Saved jobs</b><p className="mt-2 text-sm text-slate-600">Review opportunities you saved.</p></Link><Link href="/applications" className="rounded-2xl border bg-white p-6"><b>Applications</b><p className="mt-2 text-sm text-slate-600">Track application status and history.</p></Link></div></div>; }

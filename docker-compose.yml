@@ -1,0 +1,337 @@
+# =============================================================================
+# JobForge — local development infrastructure (Phase 0)
+# Owner: Dev 3 (infra lane). Spec: ARCHITECTURE §21, §14, §15; DATABASE_SCHEMA §2.
+#
+# Default profile = infrastructure only (Postgres, Redis, Kafka KRaft, Mailpit).
+# Apps (backend, ai-service, frontend) run natively during development and connect via localhost.
+# Application containers: docker compose --profile app up -d --build (backend, ai-service, frontend).
+#
+#   First run:  bash infrastructure/scripts/gen-secrets.sh   # creates .env with random local secrets
+#               docker compose up -d
+#               bash infrastructure/scripts/verify.sh
+#
+# Everything here is free/open-source. No paid service or API key is required.
+# All host ports bind to 127.0.0.1 only (not exposed to your LAN).
+# =============================================================================
+name: jobforge
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16 — schemas core | community | platform | ai (see infrastructure/postgres/init)
+  # Init scripts run ONLY on first start of an empty volume (dev-reset.sh to re-run).
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:${POSTGRES_IMAGE_TAG:-16}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD missing - run infrastructure/scripts/gen-secrets.sh}
+      POSTGRES_DB: ${POSTGRES_DB:-jobforge}
+      # Consumed by 02-roles.sql via psql \getenv
+      JF_OWNER_PASSWORD: ${DB_MIGRATION_PASSWORD:?DB_MIGRATION_PASSWORD missing - run infrastructure/scripts/gen-secrets.sh}
+      JF_BACKEND_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD missing - run infrastructure/scripts/gen-secrets.sh}
+      JF_AI_PASSWORD: ${AI_DB_PASSWORD:?AI_DB_PASSWORD missing - run infrastructure/scripts/gen-secrets.sh}
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # -h 127.0.0.1 forces TCP: the temporary init-time server only listens on the unix socket,
+      # so this is healthy only after init scripts finished and the real server is up.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    mem_limit: 512m
+    logging: *default-logging
+    networks: [jobforge-net]
+
+  # ---------------------------------------------------------------------------
+  # Redis 7 — cache / rate limits / quota counters / pub-sub (never source of truth).
+  # volatile-lru: only keys with a TTL may be evicted (all JobForge keys have TTLs, ARCHITECTURE §15).
+  # REDIS_PASSWORD optional: empty = no auth (local dev default).
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:${REDIS_IMAGE_TAG:-7-alpine}
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command:
+      - sh
+      - -c
+      - >-
+        exec redis-server --maxmemory 256mb --maxmemory-policy volatile-lru --appendonly yes
+        $${REDIS_PASSWORD:+--requirepass "$$REDIS_PASSWORD"}
+    ports:
+      - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli $${REDIS_PASSWORD:+-a \"$$REDIS_PASSWORD\" --no-auth-warning} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    mem_limit: 320m
+    logging: *default-logging
+    networks: [jobforge-net]
+
+  # ---------------------------------------------------------------------------
+  # Kafka (Apache, KRaft combined broker+controller, single node).
+  # Two listeners:
+  #   EXTERNAL  localhost:9092  -> apps running on your host (KAFKA_BOOTSTRAP_SERVERS=localhost:9092)
+  #   INTERNAL  kafka:19092     -> containers on jobforge-net (later app profile)
+  # Topic auto-creation is OFF; topics come from infrastructure/kafka/create-topics.sh.
+  # ---------------------------------------------------------------------------
+  kafka:
+    image: apache/kafka:${KAFKA_IMAGE_TAG:-3.8.0}
+    restart: unless-stopped
+    environment:
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:-5L6g3nShT-eMCtK--X86sw}
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: CONTROLLER://:9093,INTERNAL://:19092,EXTERNAL://:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+    ports:
+      - "127.0.0.1:9092:9092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:19092 --list > /dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    mem_limit: 1g
+    stop_grace_period: 30s
+    logging: *default-logging
+    networks: [jobforge-net]
+
+  # One-shot: creates topics once the broker is healthy, then exits 0.
+  kafka-init:
+    image: apache/kafka:${KAFKA_IMAGE_TAG:-3.8.0}
+    restart: "no"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_INTERNAL: kafka:19092
+    volumes:
+      - ./infrastructure/kafka/create-topics.sh:/scripts/create-topics.sh:ro
+    entrypoint: ["bash", "/scripts/create-topics.sh"]
+    logging: *default-logging
+    networks: [jobforge-net]
+
+  # ---------------------------------------------------------------------------
+  # Mailpit — local SMTP sink + web UI. Nothing is ever delivered to real addresses.
+  # Backend: MAIL_HOST=localhost MAIL_PORT=1025. UI: http://localhost:8025
+  # ---------------------------------------------------------------------------
+  mailpit:
+    image: axllent/mailpit:${MAILPIT_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 2000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_HOST_PORT:-1025}:1025"
+      - "127.0.0.1:${MAILPIT_UI_HOST_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    mem_limit: 128m
+    logging: *default-logging
+    networks: [jobforge-net]
+
+  # ---------------------------------------------------------------------------
+  # Application containers - opt in with:  docker compose --profile app up -d --build
+  # (day-to-day development can still run the apps natively against the infrastructure above)
+  # ---------------------------------------------------------------------------
+  backend:
+    profiles: ["app"]
+    build: ./backend
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-jobforge}
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      MAIL_HOST: mailpit
+      STORAGE_LOCAL_PATH: /app/data/uploads
+    volumes:
+      - upload-data:/app/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    healthcheck:
+      # The JRE image has no curl; probe the readiness endpoint over a raw TCP socket with bash.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/${MANAGEMENT_PORT:-8080} && printf 'GET /actuator/health/readiness HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    ports:
+      - "8080:8080"
+    networks: [jobforge-net]
+
+  ai-service:
+    profiles: ["app"]
+    build: ./ai-service
+    restart: unless-stopped
+    environment:
+      AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?set AI_INTERNAL_TOKEN in .env}
+      AI_PROVIDER: ${AI_PROVIDER:-local}
+    ports:
+      - "8090:8090"
+    networks: [jobforge-net]
+
+  frontend:
+    profiles: ["app"]
+    build:
+      context: ./frontend
+      args:
+        BACKEND_INTERNAL_URL: http://backend:8080
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    networks: [jobforge-net]
+
+  # ---------------------------------------------------------------------------
+  # profile "tools": Kafka UI (http://localhost:8081)
+  # ---------------------------------------------------------------------------
+  kafka-ui:
+    profiles: ["tools"]
+    image: provectuslabs/kafka-ui:${KAFKA_UI_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      KAFKA_CLUSTERS_0_NAME: jobforge
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8081:8080"
+    mem_limit: 512m
+    logging: *default-logging
+    networks: [jobforge-net]
+
+  # ---------------------------------------------------------------------------
+  # profile "monitoring": Prometheus (9090) + Grafana (3001). Backend must expose /actuator/prometheus
+  # on its management port (see application.yml management.server.port).
+  # ---------------------------------------------------------------------------
+  prometheus:
+    profiles: ["monitoring"]
+    image: prom/prometheus:${PROMETHEUS_IMAGE_TAG:-v2.55.1}
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    mem_limit: 512m
+    logging: *default-logging
+    networks: [jobforge-net]
+
+  grafana:
+    profiles: ["monitoring"]
+    image: grafana/grafana-oss:${GRAFANA_IMAGE_TAG:-11.3.0}
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./infrastructure/monitoring/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+      - ./infrastructure/monitoring/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./infrastructure/monitoring/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on: [prometheus]
+    ports:
+      - "127.0.0.1:3001:3000"
+    mem_limit: 384m
+    logging: *default-logging
+    networks: [jobforge-net]
+
+  # ---------------------------------------------------------------------------
+  # profile "storage": MinIO (S3 API 9000, console 9001). The backend still uses local disk until an S3 adapter exists.
+  # ---------------------------------------------------------------------------
+  minio:
+    profiles: ["storage"]
+    image: minio/minio:${MINIO_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY in .env}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?set S3_SECRET_KEY in .env}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+    mem_limit: 512m
+    logging: *default-logging
+    networks: [jobforge-net]
+
+  # ---------------------------------------------------------------------------
+  # profile "ollama": optional free local LLM for AI_PROVIDER=ollama (pull a model: docker compose exec ollama ollama pull <model>)
+  # ---------------------------------------------------------------------------
+  ollama:
+    profiles: ["ollama"]
+    image: ollama/ollama:${OLLAMA_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    logging: *default-logging
+    networks: [jobforge-net]
+
+networks:
+  jobforge-net:
+    name: jobforge-net
+
+volumes:
+  upload-data:
+  pg-data:
+  redis-data:
+  kafka-data:
+  prometheus-data:
+  grafana-data:
+  minio-data:
+  ollama-data:

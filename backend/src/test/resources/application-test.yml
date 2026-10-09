@@ -1,0 +1,18 @@
+jobforge:
+  cache:
+    enabled: false # no Redis in integration tests
+  rate-limit:
+    enabled: false # no Redis in integration tests
+  idempotency:
+    store: memory # no Redis in integration tests
+  platform:
+    outbox:
+      relay-enabled: false # events stay in the outbox table; no broker in ITs
+  kafka:
+    declare-topics: false # no broker in integration tests
+  security:
+    bcrypt-strength: 4 # test speed only; production default is 12
+management:
+  health:
+    redis:
+      enabled: false

@@ -1,0 +1,145 @@
+spring:
+  application:
+    name: jobforge-backend
+
+  profiles:
+    default: dev
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/jobforge}
+    username: ${DB_USER:jobforge_backend}
+    password: ${DB_PASSWORD}
+
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 5000
+
+  flyway:
+    enabled: false
+
+  sql:
+    init:
+      mode: never
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    listener:
+      # Topics are also declared by the backend (KafkaTopicsConfiguration); never crash-loop if the broker is late.
+      missing-topics-fatal: false
+
+  jackson:
+    time-zone: UTC
+
+    deserialization:
+      fail-on-unknown-properties: true
+
+    serialization:
+      write-dates-as-timestamps: false
+
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+
+  web:
+    locale: en
+
+  mvc:
+    problemdetails:
+      enabled: false
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
+
+server:
+  port: 8080
+  shutdown: graceful
+  # Honour X-Forwarded-For only when the direct peer is an internal proxy (Tomcat RemoteIpValve default: loopback and
+  # private ranges), e.g. the Next.js rewrite. Direct callers cannot spoof their IP, so rate limits and audit see real clients.
+  forward-headers-strategy: native
+
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+
+
+jobforge:
+  cache:
+    enabled: ${CACHE_ENABLED:true}
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    upload-per-minute: ${RATE_LIMIT_UPLOAD_PER_MINUTE:10}
+  storage:
+    local-dir: ${STORAGE_LOCAL_PATH:./data/uploads}
+  dev-seed:
+    enabled: ${SEED_DEV_DATA:false}
+    password: ${DEV_SEED_PASSWORD:}
+  migration:
+    enabled: true
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/jobforge}
+    user: ${DB_MIGRATION_USER:jobforge_owner}
+    password: ${DB_MIGRATION_PASSWORD}
+
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      access-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:15}
+
+    cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+    bcrypt-strength: 12
+
+  auth:
+    cookie-secure: ${COOKIE_SECURE:false}
+    cookie-domain: ${COOKIE_DOMAIN:}
+    refresh-ttl-days: 14
+    verification-ttl-hours: 24
+    password-reset-ttl-minutes: 60
+    app-base-url: ${APP_BASE_URL:http://localhost:3000}
+    mail-from: ${MAIL_FROM:no-reply@jobforge.local}
+
+
+management:
+  server:
+    # Empty (default) = actuator on the main port. For the compose monitoring profile set MANAGEMENT_PORT=9091 in .env:
+    # compose never publishes that port to the host; Prometheus scrapes it on jobforge-net.
+    port: ${MANAGEMENT_PORT:}
+  health:
+    mail:
+      enabled: false
+
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+      group:
+        readiness:
+          include: readinessState,db
+
+  info:
+    env:
+      enabled: false
+
+
+logging:
+  level:
+    root: INFO
+    com.jobforge: INFO

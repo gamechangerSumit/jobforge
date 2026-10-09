@@ -1,0 +1,10 @@
+'use client';
+import { useState } from 'react';
+import { updateApplicationStatus, withdrawApplication } from '@/lib/api/applications';
+import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import type { Application, ApplicationStatus } from '@/types/api';
+
+const nextStatuses: Record<ApplicationStatus, ApplicationStatus[]> = { SUBMITTED: ['UNDER_REVIEW', 'REJECTED'], UNDER_REVIEW: ['SHORTLISTED', 'REJECTED'], SHORTLISTED: ['INTERVIEW', 'REJECTED'], INTERVIEW: ['OFFERED', 'REJECTED'], OFFERED: ['HIRED', 'REJECTED'], HIRED: [], REJECTED: [], WITHDRAWN: [] };
+export function RecruiterStatusActions({ application, onUpdated }: { application: Application; onUpdated: (a: Application) => void }) { const [status, setStatus] = useState<ApplicationStatus | ''>(''); const [busy, setBusy] = useState(false); const update = async () => { if (!status) return; setBusy(true); try { onUpdated(await updateApplicationStatus(application.id, { status }, application.version)); } finally { setBusy(false); } }; return <div className="flex gap-2"><Select aria-label="New application status" value={status} onChange={(e) => setStatus(e.target.value as ApplicationStatus)}><option value="">Move to…</option>{nextStatuses[application.status].map((s) => <option key={s} value={s}>{s.replaceAll('_', ' ')}</option>)}</Select><Button disabled={!status || busy} onClick={() => void update()}>Update</Button></div>; }
+export function SeekerWithdrawAction({ application, onUpdated }: { application: Application; onUpdated: (a: Application) => void }) { const allowed = nextStatuses[application.status] !== undefined && ['SUBMITTED', 'UNDER_REVIEW', 'SHORTLISTED', 'INTERVIEW', 'OFFERED'].includes(application.status); const [busy, setBusy] = useState(false); if (!allowed) return null; return <Button className="bg-white text-red-700 ring-1 ring-red-200 hover:bg-red-50" disabled={busy} onClick={async () => { setBusy(true); try { onUpdated(await withdrawApplication(application.id, application.version)); } finally { setBusy(false); } }}>Withdraw application</Button>; }

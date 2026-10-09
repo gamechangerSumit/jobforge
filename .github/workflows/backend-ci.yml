@@ -1,0 +1,36 @@
+name: backend-ci
+on:
+  pull_request:
+    paths: ['backend/**', 'docs/openapi/**', 'docs/DATABASE_SCHEMA.md', '.github/workflows/backend-ci.yml']
+  push:
+    branches: [develop, main]
+    paths: ['backend/**', 'docs/openapi/**']
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      # Unit tests + Testcontainers ITs (Docker is available on ubuntu-latest) + ArchUnit.
+      - run: mvn -B -ntp clean verify
+      # TODO(infra): add Spotless/Checkstyle + JaCoCo gate once configured in pom.xml, and an OpenAPI
+      # regeneration step that fails when docs/openapi/openapi.v1.json differs (ARCHITECTURE section 22).
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: surefire-reports
+          path: backend/target/surefire-reports
+          retention-days: 7

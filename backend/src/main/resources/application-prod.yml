@@ -1,0 +1,10 @@
+# Production-like profile. Migrations run as a distinct deploy step (ARCHITECTURE §29),
+# not at application start. Logs are structured JSON including MDC (requestId).
+jobforge:
+  migration:
+    enabled: false
+
+logging:
+  structured:
+    format:
+      console: ecs

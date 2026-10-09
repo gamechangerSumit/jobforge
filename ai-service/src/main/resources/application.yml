@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: jobforge-ai-service
+
+server:
+  port: ${AI_SERVICE_PORT:8090}
+  shutdown: graceful
+
+jobforge:
+  ai:
+    # Default provider is the zero-cost LocalTemplateProvider (CLAUDE.md hard rule 4).
+    provider: ${AI_PROVIDER:local}
+    # No default on purpose: the service refuses to start without a shared secret.
+    internal-token: ${AI_INTERNAL_TOKEN}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never

@@ -1,0 +1,49 @@
+name: integration
+on:
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  compose-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare .env with throw-away CI secrets
+        run: |
+          cp .env.example .env
+          for v in POSTGRES_PASSWORD DB_MIGRATION_PASSWORD DB_PASSWORD AI_DB_PASSWORD AI_INTERNAL_TOKEN DEV_SEED_PASSWORD; do
+            sed -i "/^$v=/d" .env
+            echo "$v=ci-$(openssl rand -hex 16)" >> .env
+          done
+          sed -i '/^SEED_DEV_DATA=/d' .env
+          echo "SEED_DEV_DATA=true" >> .env
+      - name: Start the full stack (app profile)
+        run: docker compose --profile app up -d --build --wait --wait-timeout 600
+      - name: Public job search is anonymous (regression for the former 403)
+        run: |
+          code=$(curl -s -o /tmp/jobs.json -w '%{http_code}' http://localhost:8080/api/v1/jobs)
+          test "$code" = "200"
+          grep -q '"data"' /tmp/jobs.json
+      - name: Facets, skills and companies are public
+        run: |
+          curl -fsS http://localhost:8080/api/v1/jobs/facets > /dev/null
+          curl -fsS "http://localhost:8080/api/v1/skills?q=ja" > /dev/null
+          curl -fsS http://localhost:8080/api/v1/companies > /dev/null
+      - name: Protected routes reject anonymous callers
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/v1/companies/me)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/v1/admin/users)" = "401"
+      - name: Frontend serves the jobs page
+        run: test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/jobs)" = "200"
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose --profile app logs --no-color --tail 200
+      - name: Tear down
+        if: always()
+        run: docker compose --profile app down -v
