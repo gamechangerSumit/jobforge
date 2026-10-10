@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Avatar } from '@/components/common/Avatar';
 import { Card } from '@/components/ui/Card';
+import { ReportButton } from '@/features/reports/ReportButton';
 import { getPublicCard } from '@/lib/api/users';
 import { useSession } from '@/lib/auth/session';
 
@@ -33,6 +34,7 @@ export default function PublicUserPage() {
             {c.headline && <p className="mt-2 text-slate-800">{c.headline}</p>}
           </div>
         </div>
+        {user.id !== c.id && <div className="mt-5 border-t pt-4"><ReportButton targetType="USER" targetId={c.id} /></div>}
       </Card>
     </div>
   );

@@ -24,6 +24,9 @@ public interface CompanyAccessFacade {
     /** {@code companies.verification_status = VERIFIED} and not deleted (D-16). */
     boolean isVerified(UUID companyId);
 
+    /** User id of the company's OWNER member; empty for unknown or soft-deleted companies. */
+    Optional<UUID> ownerOf(UUID companyId);
+
     /**
      * Account-deletion policy (REQ-20261009): a company OWNER cannot delete the account while the company still has
      * other members or open jobs. Returns the user-facing reason, or empty when deletion may proceed.

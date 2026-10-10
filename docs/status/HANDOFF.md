@@ -81,3 +81,23 @@ notification stream/email outbox/preferences/deep links, OpenAPI snapshot + gene
 - Profile PUT replaces: omitted optional fields are cleared.
 - RedisRateLimiter fails open on Redis errors; consider failing closed for AUTH.
 - With MANAGEMENT_PORT set, actuator leaves 8080; HealthEndpointIT and scripts calling 8080 will not match.
+
+
+## Session 3 - Reports & Moderation (3A backend + 3B frontend) + fix pass - static only, NOT compiled/built/run/tested
+
+### Done (as source/docs)
+- Backend `report` module and frontend report/admin screens (see backend.md "Session 3A" and frontend.md "Session 3B").
+- Fix pass: S3-01 (resolve reason 10–500 code points after trimming, backend and frontend aligned) and S3-02 (soft-deleted verified company not reportable) fixed in source, plus `Location` on `POST /reports`, with new tests (all NOT RUN); S3-03…S3-06 documented. API_CONTRACT §12.9.1 and §12.11.1, ARCHITECTURE §14 (moderation consumer mapping) and CHANGELOG_CONTRACTS updated.
+
+- Details pass: report `details` validation aligned across frontend, backend and contract (raw 1000 UTF-16 units before trimming; JS-trim whitespace set; blank → omitted) in source, with new tests `ReportTextTest`, `ReportFlowIT` details test, `report-schema.test.ts`, `ReportForm.test.tsx` (all NOT RUN).
+
+### Product decisions (recorded) and deferred items
+- Decided for v1: `Location` on `POST /reports` is the admin-only `/api/v1/admin/reports/{id}` (admin resource; reporters cannot read it; no reporter read endpoint in v1); report `details` stays 1000 UTF-16 code units (no validation change); `POST /reports` stays on `DEFAULT` rate limiting.
+- Deferred: admin notification for newly filed reports (`ContentReported` behavior unchanged, no new consumer or notification type); `POST`/`COMMENT` report targets and `HIDE_CONTENT` go to the Community session (they keep returning 422 until it is implemented and approved).
+- Known, unchanged (pre-existing, outside Session 3): `POST /auth/register`, `POST /admin/users` and `POST /companies/{id}/members` return 201 without `Location`.
+
+### Verification still required (by a human)
+1. `cd backend && mvn clean verify` (incl. `ReportTransitionsTest`, `AdminReportReasonTest`, `ReportTextTest`, `ReportFlowIT`, `ArchitectureTest`).
+2. `cd frontend && pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test tests/e2e/reports.spec.ts`.
+3. Manual: duplicate reports, non-admin on `/admin/reports`, dismiss / warn / remove job / suspend user, reason of 9 vs 10 characters, report a soft-deleted company, inspect audit rows and notifications.
+Do not call Session 3 runtime-verified until these pass.

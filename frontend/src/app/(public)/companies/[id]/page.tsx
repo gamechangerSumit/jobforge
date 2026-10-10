@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { JobCard } from '@/components/jobs/JobCard';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ReportButton } from '@/features/reports/ReportButton';
 import { companyLogoSrc, getCompany } from '@/lib/api/companies';
 import { listJobsPage } from '@/lib/api/jobs';
 
@@ -38,6 +39,7 @@ export default function CompanyPublicPage() {
           </div>
         </div>
         {c.description && <p className="mt-5 whitespace-pre-wrap text-slate-700">{c.description}</p>}
+        <div className="mt-5 border-t pt-4"><ReportButton targetType="COMPANY" targetId={c.id} /></div>
       </Card>
       <section aria-labelledby="open-jobs">
         <h2 id="open-jobs" className="mb-3 text-xl font-bold">Open jobs ({c.openJobCount})</h2>

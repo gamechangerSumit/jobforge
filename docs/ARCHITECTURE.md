@@ -218,11 +218,13 @@ Domain event (Kafka) → `NotificationConsumer` (idempotent via `processed_event
 | ApplicationSubmitted, ApplicationStatusChanged, ApplicationWithdrawn | applications | backend | notification, analytics |
 | InterviewScheduled/Updated/Cancelled/Responded | interviews | backend | notification |
 | PostCreated, CommentCreated, PostLiked, UserMentioned, UserFollowed | community | backend | notification, search (cache) |
-| ContentReported, ContentModerated | moderation | backend | notification, audit |
+| ContentReported | moderation | backend/report | none in v1 (audit is written synchronously as `REPORT_FILED`; no notification is defined) |
+| ContentModerated | moderation | backend/report | notification (`CONTENT_MODERATED` to the affected owner; audit is written synchronously as `CONTENT_MODERATED`) |
 | AiRequestCompleted, AiQuotaLow | ai | ai-service | notification, audit |
 | AuditRecorded | audit | ai-service | backend audit consumer |
 
 - **Not async (must stay synchronous):** auth, validation, authorization, the primary business transaction, audit for security-critical backend actions.
+- **Report events:** `ContentReported` is emitted for later processing only; it does not guarantee a user-facing notification. Admin report-arrival notifications need a separate approved contract change (new notification type and recipient policy).
 - **Kafka-down behavior:** backend keeps working (outbox accumulates); notifications are delayed, not lost.
 
 ## 15. Redis Responsibilities

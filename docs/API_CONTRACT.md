@@ -374,11 +374,37 @@ Notification DTO: `{ id, type, title, body, data{ deepLink, jobId?, applicationI
 | PUT/DELETE | `/users/{id}/follow` | A | Follow user |
 | PUT/DELETE | `/community/tags/{slug}/follow` | A | Follow tag |
 | GET | `/community/tags?q=` · `/community/tags/trending` | A | Tag autocomplete / trending |
-| POST | `/reports` | A | Report content `{ targetType: POST|COMMENT|USER|JOB|COMPANY, targetId, reason, details? }`; one open report per (reporter,target) |
+| POST | `/reports` | A | Report content `{ targetType: POST|COMMENT|USER|JOB|COMPANY, targetId, reason, details? }`; one open report per (reporter,target); details in §12.9.1 |
 
 Post DTO: `{ id, type, title, body, tags[], typeMetadata, author{UserSummary}, counts{likes,comments,saves,shares}, viewer{liked,saved,following}, status, createdAt, editedAt }`.
 `typeMetadata` by type: `HIRING {companyName, roleTitle, jobId?, location?, applyUrl?}`, `REFERRAL {companyName, roleTitle, referralDetails}`, `PROJECT {repoUrl?, liveUrl?, techStack[]}`, `EVENT {startsAt, endsAt?, location?, onlineUrl?, registrationUrl?}`, `DISCUSSION|CAREER_ADVICE|TECHNICAL {}` (optional `{codeLanguage?}` for TECHNICAL). URLs must be `https`.
 Mentions: `@handle` in `body` is parsed server-side; mentioned users notified; unknown handles ignored.
+
+#### 12.9.1 Report filing — `POST /reports`
+
+Auth: any authenticated user (`JOB_SEEKER`, `RECRUITER`, `ADMIN`); unauthenticated → `401 AUTH_UNAUTHENTICATED`. Success responses use the §4 envelope; the DTOs below are the contents of `data`.
+
+Request:
+```json
+{
+  "targetType": "JOB|COMPANY|USER|POST|COMMENT",
+  "targetId": "uuid",
+  "reason": "SPAM|HARASSMENT|SCAM|INAPPROPRIATE|MISINFORMATION|DISCRIMINATION|OTHER",
+  "details": "optional text, max 1000 UTF-16 code units"
+}
+```
+- `targetType`, `targetId`, `reason` are required; a missing field, an invalid enum value or an unknown field → `400 VALIDATION_FAILED` (unknown field: `details[].code = UNKNOWN_FIELD`, §5.1). `details` is optional, at most 1000 UTF-16 code units (`String.length()` in Java, `.length` in JavaScript; measured on the submitted value before trimming, so a character outside the Basic Multilingual Plane, such as most emoji, counts as 2), then trimmed (leading/trailing ECMAScript whitespace: the same set as the `reason` trim in §12.11.1, including non-breaking space, U+FEFF and line terminators); a value that is empty after trimming is treated as omitted and stored as none. `details` is private report text.
+- **Supported targets (phased):** `JOB`, `COMPANY`, `USER`. `POST` and `COMMENT` are reserved enum values: until the Community module registers their target adapters, `POST /reports` returns `422 BUSINESS_RULE_VIOLATED` for them. Community post/comment reporting and moderation are **not** implemented; they are deferred to the Community session, and until that session is implemented and approved this `422` behavior is unchanged.
+- **Visibility:** `JOB` must be currently public (published, not expired, not removed/deleted); `COMPANY` must be `VERIFIED` and not soft-deleted (a soft-deleted company is treated as missing even though its verification status is retained); `USER` must be `ACTIVE`. A missing or non-visible target → `404 RESOURCE_NOT_FOUND` (no ID probing, §5.1).
+- **Self-reports:** a caller cannot report their own account, a job they created, or a company they own → `422 BUSINESS_RULE_VIOLATED`.
+- **Duplicates:** at most one active report per `(reporter, targetType, targetId)` while the earlier report is `OPEN` or `REVIEWING` → `409 CONFLICT`. A new report may be filed once the earlier one is `RESOLVED` or `DISMISSED`.
+- **Rate limiting:** `POST /reports` currently uses rate-limit class `DEFAULT` (§9). Decision for v1: keep `DEFAULT`; `WRITE_COMMUNITY` or a dedicated report-write class is not assigned and is not part of this contract.
+- Response `201 Created` (§4); `data`:
+```json
+{ "id": "uuid", "targetType": "JOB", "targetId": "uuid", "reason": "SPAM", "status": "OPEN", "createdAt": "2026-10-10T10:15:30Z" }
+```
+  The response never echoes `details`, reporter identity or moderation data. `status` is always `OPEN` on creation.
+- The `Location` header (§4) is `/api/v1/admin/reports/{id}`, the report's only resource URI. It is readable by `ADMIN` only (§12.11.1): v1 has no reporter-facing read endpoint, so a reporter following it gets `403 ACCESS_DENIED`. This URI identifies an admin resource, not a reporter-facing one; a reporter read endpoint is intentionally out of v1.
 
 ### 12.10 Recruiter Analytics (D1)
 
@@ -398,7 +424,7 @@ Mentions: `@handle` in `body` is parsed server-side; mentioned users notified; u
 | GET | `/admin/recruiters` · POST `/admin/recruiters/{id}/approve|reject` | Recruiter approval (`reason` for reject) |
 | GET | `/admin/companies` · POST `/admin/companies/{id}/verify|reject|suspend` | Company verification |
 | GET | `/admin/jobs` · POST `/admin/jobs/{id}/remove|restore` | Job moderation (`reason` required for remove) |
-| GET | `/admin/reports` · `/admin/reports/{id}` · POST `/admin/reports/{id}/resolve` | Queue; resolve `{ action: DISMISS|HIDE_CONTENT|REMOVE_CONTENT|WARN_USER|SUSPEND_USER, reason }` |
+| GET | `/admin/reports` · `/admin/reports/{id}` · POST `/admin/reports/{id}/resolve` | Queue; resolve `{ action: DISMISS|HIDE_CONTENT|REMOVE_CONTENT|WARN_USER|SUSPEND_USER, reason }`; details in §12.11.1 |
 | GET | `/admin/community/posts` · POST `/admin/community/posts/{id}/hide|remove|restore` | Community moderation |
 | GET | `/admin/audit-logs` | Filters: `actorId`, `action`, `entityType`, `entityId`, `from`, `to`; offset pages |
 | GET | `/admin/analytics/overview` · `/admin/analytics/timeseries?metric=&from=&to=&interval=` | Platform KPIs |
@@ -406,6 +432,54 @@ Mentions: `@handle` in `body` is parsed server-side; mentioned users notified; u
 | GET | `/admin/ai/requests` (D3) | Request log (no raw prompts unless `includeInput=true`, audited) |
 | GET/PUT | `/admin/ai/quota-policies` (D3) | View/update role policies |
 | PUT/DELETE | `/admin/ai/quota-overrides/{userId}` (D3) | Per-user override |
+
+#### 12.11.1 Report moderation — `/admin/reports`
+
+All `/admin/reports/**` endpoints are `ADMIN` only; there is no `MODERATOR` role in v1. Unauthenticated → `401 AUTH_UNAUTHENTICATED`; authenticated non-admin → `403 ACCESS_DENIED`. Success responses use the §4 envelope; the DTOs below are the contents of `data`.
+
+**`GET /admin/reports`** — offset pagination (§6, `meta.page`). Optional query parameters: `status` (`OPEN|REVIEWING|RESOLVED|DISMISSED`), `targetType` (`POST|COMMENT|USER|JOB|COMPANY`), `reason` (report reasons above), `sort` (`createdAt,asc|createdAt,desc`; default `createdAt,asc`, oldest first), `page` (default 0), `size` (default 20, max 100). An unknown query parameter, an invalid enum value or an unsupported `sort` → `400 VALIDATION_FAILED`. Each `data[]` item (no private `details`):
+```json
+{ "id": "uuid", "targetType": "JOB", "targetId": "uuid", "reason": "SPAM", "status": "OPEN",
+  "reporterId": "uuid", "createdAt": "2026-10-10T10:15:30Z", "updatedAt": "2026-10-10T10:15:30Z" }
+```
+
+**`GET /admin/reports/{id}`** — `200`; unknown id → `404 RESOURCE_NOT_FOUND`. Only admins can read private `details` and the reporter identity. `data`:
+```json
+{
+  "id": "uuid", "targetType": "JOB", "targetId": "uuid", "reason": "SPAM",
+  "details": "private report details (omitted when none)", "status": "OPEN",
+  "reporter": { "id": "uuid", "displayName": "Reporter name" },
+  "target": { "type": "JOB", "id": "uuid", "label": "Job title", "status": "PUBLISHED", "available": true },
+  "actions": [ { "id": "uuid", "action": "WARN_USER", "moderatorId": "uuid", "reason": "Policy explanation", "createdAt": "2026-10-10T10:15:30Z" } ],
+  "createdAt": "2026-10-10T10:15:30Z", "updatedAt": "2026-10-10T10:15:30Z"
+}
+```
+`reporter.displayName` is `"Deleted user"` when the reporter's account no longer exists. When the target is gone or no longer visible, `target` is `{ "type", "id", "status": "UNAVAILABLE", "available": false }` (`label` omitted). `actions` is the moderation history, oldest first.
+
+**`POST /admin/reports/{id}/resolve`** — request:
+```json
+{ "action": "DISMISS|HIDE_CONTENT|REMOVE_CONTENT|WARN_USER|SUSPEND_USER", "reason": "10–500 characters after trimming" }
+```
+- `reason` is required and trimmed (leading/trailing Unicode whitespace, including non-breaking space, U+FEFF and line terminators, is removed); the trimmed value must be 10–500 characters, counted as Unicode code points (an emoji counts as 1) → otherwise `400 VALIDATION_FAILED` (`details[].code = SIZE`). Whitespace padding neither satisfies the minimum nor counts toward the maximum. The stored/audited reason is the trimmed value. The frontend applies the same rule.
+- Supported action matrix (any other combination → `422 BUSINESS_RULE_VIOLATED`, no side effects):
+
+| Action | JOB | COMPANY | USER |
+|---|---|---|---|
+| `DISMISS` | Supported | Supported | Supported |
+| `WARN_USER` | Supported (job creator) | Supported (company owner) | Supported (reported user) |
+| `REMOVE_CONTENT` | Supported (existing admin job removal) | Unsupported | Unsupported |
+| `SUSPEND_USER` | Unsupported | Unsupported | Supported (existing user moderation rules; an administrator cannot be suspended) |
+| `HIDE_CONTENT` | Unsupported | Unsupported | Unsupported |
+
+  `HIDE_CONTENT` is an enum value only; no current target has a hidden state. `POST`/`COMMENT` reports cannot exist yet (§12.9.1). Both `HIDE_CONTENT` and `POST`/`COMMENT` targets are deferred to the Community session; until then the `422` behavior above is unchanged.
+- If the target has disappeared (missing, soft-deleted or no longer visible), only `DISMISS` is allowed; any other action → `422 BUSINESS_RULE_VIOLATED`.
+- `DISMISS` moves an active (`OPEN`/`REVIEWING`) report to `DISMISSED`; every other supported action moves it to `RESOLVED`. `RESOLVED` and `DISMISSED` are terminal: resolving a terminal report (including a concurrent resolve) → `409 INVALID_STATE_TRANSITION`.
+- One transaction records the `moderation_actions` row, the status change, and the audit entries: `REPORT_RESOLVED` for every decision, plus `CONTENT_MODERATED` for non-dismiss decisions.
+- Response `200`: the updated report detail (shape above).
+
+**Report workflow limitations (v1):** reports are created `OPEN`; `REVIEWING` is a schema-supported active status but no endpoint moves a report into it; there is no reporter-facing "my reports" endpoint; resolving `REMOVE_CONTENT` against a job that was already removed by another path is rejected by the job state machine (admins should `DISMISS`).
+
+**Events and notifications:** `ContentReported` and `ContentModerated` are published to `jobforge.moderation.v1` with no free-text report details or moderation reason in the payload. `ContentReported` carries no user-facing notification guarantee: no report-arrival notification type or recipient policy is defined, so filing a report notifies nobody (the synchronous `REPORT_FILED` audit entry is written). Notifying admins of new reports is deferred and requires a separate approved contract change; no new consumer or notification type is introduced in v1. `ContentModerated` (non-dismiss decisions) notifies the affected target owner with a `CONTENT_MODERATED` notification and never exposes the reporter or private report details.
 
 ## 13. Shared Status Payloads
 
