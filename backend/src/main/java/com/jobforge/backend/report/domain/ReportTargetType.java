@@ -1,6 +1,6 @@
 package com.jobforge.backend.report.domain;
 
-/** DATABASE_SCHEMA report_target_type. POST/COMMENT belong to the community module (not part of this session). */
+/** DATABASE_SCHEMA report_target_type. POST/COMMENT are served by the community module (Session 4). */
 public enum ReportTargetType {
     POST, COMMENT, USER, JOB, COMPANY;
 

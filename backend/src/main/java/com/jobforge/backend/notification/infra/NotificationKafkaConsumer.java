@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobforge.backend.notification.app.NotificationService;
 import com.jobforge.backend.platform.events.EventEnvelope;
 import com.jobforge.backend.platform.events.IdempotentEventConsumer;
+import com.jobforge.backend.user.facade.UserSummaryFacade;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -20,12 +21,15 @@ public class NotificationKafkaConsumer {
     private final IdempotentEventConsumer consumer;
     private final NotificationService notifications;
     private final ObjectMapper mapper;
+    private final UserSummaryFacade users;
 
     public NotificationKafkaConsumer(
             IdempotentEventConsumer consumer,
             NotificationService notifications,
-            ObjectMapper mapper
+            ObjectMapper mapper,
+            UserSummaryFacade users
     ) {
+        this.users = users;
         this.consumer = consumer;
         this.notifications = notifications;
         this.mapper = mapper;
@@ -96,6 +100,14 @@ public class NotificationKafkaConsumer {
             case "CompanyRejected" ->
                     moderationOutcome(event, "ownerId", "COMPANY_REJECTED", "Company verification rejected",
                             "Your company verification was rejected. Review the company page for the reason.");
+
+            case "PostLiked" -> communityNotice(event, "likerId", "postAuthorId", "POST_LIKED",
+                    "New like", "%s liked your post.", "postId");
+            case "UserFollowed" -> communityNotice(event, "followerId", "followeeId", "USER_FOLLOWED",
+                    "New follower", "%s started following you.", null);
+            case "UserMentioned" -> communityNotice(event, "authorId", "mentionedUserId", "USER_MENTIONED",
+                    "You were mentioned", "%s mentioned you in the community.", "postId");
+            case "CommentCreated" -> commentCreated(event);
 
             default -> {
                 // Event is valid but does not require
@@ -335,6 +347,67 @@ public class NotificationKafkaConsumer {
                 "AI_COMPLETED:"
                         + event.aggregateId()
         );
+    }
+
+    /**
+     * Display name of the acting user for community notifications ("Asha Kulkarni liked your post."). Falls back to
+     * "Someone" when the user cannot be resolved; control characters are removed and the length is capped.
+     */
+    private String actorName(String userId) {
+        try {
+            String name = users.summary(UUID.fromString(userId))
+                    .map(u -> ((u.firstName() == null ? "" : u.firstName()) + " " + (u.lastName() == null ? "" : u.lastName())).strip())
+                    .orElse("");
+            name = name.replaceAll("\\p{Cntrl}", "").strip();
+            if (name.length() > 80) {
+                name = name.substring(0, 80).strip();
+            }
+            return name.isBlank() ? "Someone" : name;
+        } catch (IllegalArgumentException e) {
+            return "Someone";
+        }
+    }
+
+    /** Community notification to one recipient; never notifies a user about their own action. */
+    private void communityNotice(EventEnvelope event, String actorField, String recipientField, String type,
+            String title, String body, String postIdField) {
+        JsonNode payload = mapper.valueToTree(event.payload());
+        String recipient = firstText(payload, recipientField);
+        String actor = firstText(payload, actorField);
+        if (recipient.isBlank() || recipient.equals(actor)) {
+            return;
+        }
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("actorId", actor);
+        if (postIdField != null) {
+            data.put("postId", firstText(payload, postIdField));
+        }
+        // dedupe (column is varchar(120)): toggling a like/follow repeatedly must not create repeated notifications;
+        // the recipient is part of the unique key via platform.notifications.user_id
+        String dedupe = switch (type) {
+            case "POST_LIKED" -> "PL:" + firstText(payload, "postId") + ":" + actor;
+            case "USER_FOLLOWED" -> "UF:" + actor;
+            default -> "UM:" + firstText(payload, "sourceId");
+        };
+        notifications.create(UUID.fromString(recipient), type, title, body.formatted(actorName(actor)), data, dedupe);
+    }
+
+    /** CommentCreated: reply -> COMMENT_REPLIED to the parent author; always POST_COMMENTED to the post author (deduped). */
+    private void commentCreated(EventEnvelope event) {
+        JsonNode payload = mapper.valueToTree(event.payload());
+        String author = firstText(payload, "authorId");
+        String postAuthor = firstText(payload, "postAuthorId");
+        String parentAuthor = firstText(payload, "parentAuthorId");
+        String commentId = firstText(payload, "commentId");
+        Map<String, Object> data = Map.of("postId", firstText(payload, "postId"), "commentId", commentId);
+        if (!parentAuthor.isBlank() && !parentAuthor.equals(author)) {
+            notifications.create(UUID.fromString(parentAuthor), "COMMENT_REPLIED", "New reply",
+                    "%s replied to your comment.".formatted(actorName(author)), data, "COMMENT_REPLIED:" + commentId);
+        }
+        if (!postAuthor.isBlank() && !postAuthor.equals(author) && !postAuthor.equals(parentAuthor)) {
+            notifications.create(UUID.fromString(postAuthor), "POST_COMMENTED", "New comment",
+                    "%s commented on your post.".formatted(actorName(author)), data, "POST_COMMENTED:" + commentId);
+        }
     }
 
     private void moderationOutcome(EventEnvelope event, String recipientField, String type, String title, String body) {

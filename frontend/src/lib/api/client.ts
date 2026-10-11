@@ -9,6 +9,7 @@ export class ApiClientError extends Error {
 }
 
 export interface Page<T> { items: T[]; page: PageMeta | undefined }
+export interface CursorPage<T> { items: T[]; next: string | null; hasNext: boolean; limit: number }
 
 export function setAccessToken(token: string | null) { accessToken = token; }
 export function getAccessToken() { return accessToken; }
@@ -86,6 +87,11 @@ export const api = {
   getPage: async <T>(path: string): Promise<Page<T>> => {
     const envelope = await requestEnvelope<T[]>(path);
     return { items: envelope.data, page: envelope.meta?.page };
+  },
+  getCursorPage: async <T>(path: string): Promise<CursorPage<T>> => {
+    const envelope = await requestEnvelope<T[]>(path);
+    const cursor = envelope.meta?.cursor;
+    return { items: envelope.data, next: cursor?.next ?? null, hasNext: Boolean(cursor?.hasNext), limit: cursor?.limit ?? envelope.data.length };
   },
   post: <T>(path: string, body?: unknown, headers?: HeadersInit) => request<T>(path, { method: 'POST', body: json(body), headers }),
   put: <T>(path: string, body?: unknown, headers?: HeadersInit) => request<T>(path, { method: 'PUT', body: json(body), headers }),

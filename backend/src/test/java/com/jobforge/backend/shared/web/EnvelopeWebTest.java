@@ -1,3 +1,4 @@
+
 package com.jobforge.backend.shared.web;
 
 import static org.hamcrest.Matchers.containsString;
@@ -12,60 +13,48 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.jobforge.backend.shared.api.CursorMeta;
-import com.jobforge.backend.shared.api.CursorResponse;
-import com.jobforge.backend.shared.api.PageMeta;
-import com.jobforge.backend.shared.api.PagedResponse;
-import com.jobforge.backend.shared.config.ApiPathConfig;
 import com.jobforge.backend.shared.config.ClockConfig;
-import com.jobforge.backend.shared.error.BusinessRuleException;
-import com.jobforge.backend.shared.error.ConflictException;
-import com.jobforge.backend.shared.error.ErrorCode;
-import com.jobforge.backend.shared.error.RateLimitedException;
-import com.jobforge.backend.shared.error.ResourceNotFoundException;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
-import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.http.ResponseEntity;
-import org.springframework.context.annotation.Profile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 
-/** Verifies the success/error envelope against API_CONTRACT §4/§5 through a throw-away probe controller. */
-@WebMvcTest(controllers = EnvelopeWebTest.ProbeController.class)
-@Import({ClockConfig.class, ApiPathConfig.class})
+/**
+ * Verifies the success/error envelope against API_CONTRACT §4/§5
+ * through a test-only probe controller.
+ */
+@WebMvcTest(controllers = EnvelopeWebProbeController.class)
+@Import({
+        ClockConfig.class,
+        EnvelopeWebTest.OpenSecurity.class
+})
 @ActiveProfiles("web-probe")
 class EnvelopeWebTest {
+
+    @Autowired
+    private org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping handlerMapping;
+
+
 
     private static final String BASE = "/api/v1/probe";
 
     @Autowired
     private MockMvc mvc;
 
-    // ---- success envelope ----
+    // ---- Success envelope ----
 
     @Test
     void singleResourceIsWrappedWithRequestIdAndUtcTimestamp() throws Exception {
         String id = UUID.randomUUID().toString();
+
         mvc.perform(get(BASE + "/ok").header("X-Request-Id", id))
                 .andExpect(status().isOk())
                 .andExpect(header().string("X-Request-Id", id))
@@ -100,14 +89,17 @@ class EnvelopeWebTest {
 
     @Test
     void noContentHasNoBody() throws Exception {
-        mvc.perform(delete(BASE + "/gone")).andExpect(status().isNoContent()).andExpect(content().string(""));
+        mvc.perform(delete(BASE + "/gone"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
     }
 
-    // ---- error envelope ----
+    // ---- Error envelope ----
 
     @Test
     void notFoundUsesErrorEnvelope() throws Exception {
         String id = UUID.randomUUID().toString();
+
         mvc.perform(get(BASE + "/missing").header("X-Request-Id", id))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("RESOURCE_NOT_FOUND"))
@@ -151,20 +143,32 @@ class EnvelopeWebTest {
                 .andExpect(content().string(not(containsString("IllegalStateException"))));
     }
 
+    // ---- Validation ----
+
     @Test
     void beanValidationFailuresListFieldAndConstraintCode() throws Exception {
-        mvc.perform(post(BASE + "/validate").contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"ab\",\"openings\":0}"))
+        mvc.perform(post(BASE + "/validate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"ab\",\"openings\":0}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
-                .andExpect(jsonPath("$.error.details[?(@.field=='title')].code", hasItem("SIZE")))
-                .andExpect(jsonPath("$.error.details[?(@.field=='openings')].code", hasItem("MIN")));
+                .andExpect(jsonPath(
+                        "$.error.details[?(@.field=='title')].code",
+                        hasItem("SIZE")))
+                .andExpect(jsonPath(
+                        "$.error.details[?(@.field=='openings')].code",
+                        hasItem("MIN")));
     }
 
     @Test
     void missingRequiredFieldReportsNotBlank() throws Exception {
-        mvc.perform(post(BASE + "/validate").contentType(MediaType.APPLICATION_JSON).content("{\"openings\":1}"))
+        mvc.perform(post(BASE + "/validate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"openings\":1}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.details[?(@.field=='title')].code", hasItem("NOT_BLANK")));
+                .andExpect(jsonPath(
+                        "$.error.details[?(@.field=='title')].code",
+                        hasItem("NOT_BLANK")));
     }
 
     @Test
@@ -180,7 +184,9 @@ class EnvelopeWebTest {
 
     @Test
     void unparseableJsonIsMalformedRequest() throws Exception {
-        mvc.perform(post(BASE + "/validate").contentType(MediaType.APPLICATION_JSON).content("{"))
+        mvc.perform(post(BASE + "/validate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("MALFORMED_REQUEST"));
     }
@@ -194,10 +200,14 @@ class EnvelopeWebTest {
 
     @Test
     void wrongContentTypeIs415() throws Exception {
-        mvc.perform(post(BASE + "/validate").contentType(MediaType.TEXT_PLAIN).content("x"))
+        mvc.perform(post(BASE + "/validate")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("x"))
                 .andExpect(status().isUnsupportedMediaType())
                 .andExpect(jsonPath("$.error.code").value("UNSUPPORTED_MEDIA_TYPE"));
     }
+
+    // ---- Unknown routes ----
 
     @Test
     void unknownRouteIsResourceNotFoundEnvelope() throws Exception {
@@ -213,79 +223,22 @@ class EnvelopeWebTest {
                 .andExpect(jsonPath("$.error.code").value("RESOURCE_NOT_FOUND"));
     }
 
-    // ---- probe controller (test-only; lives in an api-less package, excluded from ArchUnit) ----
+    // ---- Test-only configuration ----
 
-    /** Security is covered by the *IT tests; this slice only verifies the envelope. */
+    /**
+     * Security is covered by integration tests.
+     * This MVC slice focuses on response envelopes.
+     */
     @TestConfiguration
     static class OpenSecurity {
+
         @Bean
         SecurityFilterChain openChain(HttpSecurity http) throws Exception {
-            return http.csrf(c -> c.disable()).authorizeHttpRequests(a -> a.anyRequest().permitAll()).build();
+            return http
+                    .csrf(csrf -> csrf.disable())
+                    .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                    .build();
         }
     }
 
-    record Item(String name) {}
-
-    record CreateRequest(@NotBlank @Size(min = 3, max = 120) String title, @Min(1) Integer openings) {}
-
-    @Profile("web-probe") // keeps the probe out of full-context ITs
-    @RestController
-    @RequestMapping("/probe")
-    static class ProbeController {
-
-        @GetMapping("/ok")
-        Item ok() {
-            return new Item("alpha");
-        }
-
-        @GetMapping("/page")
-        PagedResponse<Item> page() {
-            return new PagedResponse<>(List.of(new Item("alpha")), PageMeta.of(0, 20, 1));
-        }
-
-        @GetMapping("/cursor")
-        CursorResponse<Item> cursor() {
-            return new CursorResponse<>(List.of(), new CursorMeta(null, false, 20));
-        }
-
-        @DeleteMapping("/gone")
-        ResponseEntity<Void> gone() {
-            return ResponseEntity.noContent().build();
-        }
-
-        @GetMapping("/missing")
-        Item missing() {
-            throw new ResourceNotFoundException("Job not found.");
-        }
-
-        @GetMapping("/conflict")
-        Item conflict() {
-            throw new ConflictException(ErrorCode.STALE_VERSION, "The resource was modified by someone else.");
-        }
-
-        @GetMapping("/rule")
-        Item rule() {
-            throw new BusinessRuleException("Profile is incomplete.");
-        }
-
-        @GetMapping("/limited")
-        Item limited() {
-            throw new RateLimitedException("Too many requests.", 30);
-        }
-
-        @GetMapping("/boom")
-        Item boom() {
-            throw new IllegalStateException("internal detail jdbc:postgresql://secret-host/db");
-        }
-
-        @GetMapping("/typed")
-        Item typed(@RequestParam int n) {
-            return new Item(String.valueOf(n));
-        }
-
-        @PostMapping("/validate")
-        Item validate(@Valid @RequestBody CreateRequest request) {
-            return new Item(request.title());
-        }
-    }
 }
