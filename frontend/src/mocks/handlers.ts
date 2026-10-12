@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { freshState, ids, meta, page, type MockState } from './data';
 import { interviewHandlers, resetInterviewMocks } from './interviewHandlers';
+import { analyticsHandlers } from './analyticsHandlers';
 
 const B = '/api/v1';
 let state: MockState = freshState();
@@ -136,4 +137,5 @@ export const handlers = [
   http.get(`${B}/jobs`, () => ok(jobs, page(0, 20, jobs.length))),
   ...accountHandlers, ...profileHandlers, ...companyHandlers, ...notificationHandlers, ...adminHandlers,
   ...interviewHandlers(() => state.account.role),
+  ...analyticsHandlers(() => state.account.role),
 ];
