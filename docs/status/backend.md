@@ -55,3 +55,36 @@ Seeker skills/education/experience/resumes endpoints, `GET /users/{id}/public`, 
 
 ## Session 1 - Interviews (not compiled/run)
 Module `interview` complete per API_CONTRACT §12.7; ApplicationFacade extended and implemented by `ApplicationFacadeService`; events `jobforge.interviews.v1`; notification consumer updated; tests: InterviewAuthorizationIT, InterviewLifecycleIT, InterviewStateMachineTest, InterviewSchedulingTest. See HANDOFF revision 10 for open items.
+
+## Session 2A - Interviews backend (static audit + hardening; nothing built, run or tested)
+**Starting point:** the uploaded repository already contained the complete interview backend recorded above as "Session 1 - Interviews". Session 2A did not rebuild it. It audited the module by reading against DATABASE_SCHEMA §3.5/§4.5/§13, API_CONTRACT §12.7 and ARCHITECTURE §9/§14, then closed the gaps below.
+
+**Audit result (module `interview`, layers api -> app -> domain -> infra, plus events)**
+- Endpoints per API_CONTRACT §12.7: `POST /applications/{id}/interviews`, `GET /interviews`, `GET /interviews/{id}`, `PATCH /interviews/{id}`, `POST /interviews/{id}/cancel`, `POST /interviews/{id}/respond`, `POST /interviews/{id}/complete`. All in `InterviewController`, thin, `@PreAuthorize` per role (no `permitAll`).
+- Authorization: seekers only reach interviews of their own applications; recruiters only those of applications to jobs of their own company and only when approved; ADMIN is not listed in the contract and gets 403; every out-of-scope or unknown id answers 404 (IDOR-safe). `applicationId` list filter can only narrow the caller's scope.
+- Cross-module access only through `ApplicationFacade` (implemented by `ApplicationFacadeService`), `JobFacade`, `CompanyAccessFacade`, `ProfileFacade`, `UserFacade`. No other module's repository is used.
+- Status moves of the application (SHORTLISTED -> INTERVIEW) go through `ApplicationService.changeStatus` (history, audit, `ApplicationStatusChanged`).
+- Audit: `INTERVIEW_SCHEDULED`, `INTERVIEW_CANCELLED` (the only interview actions in DATABASE_SCHEMA §13; also written without actor when an application closure cancels interviews). Events through `EventPublisher` (outbox) on `jobforge.interviews.v1`: InterviewScheduled/Updated/Cancelled/Responded, ids and schedule metadata only.
+- State rules: `InterviewStateMachine` + `InterviewScheduling` (409 `INVALID_STATE_TRANSITION`, 422 for time rules, 409 `STALE_VERSION` on concurrent change).
+
+**Changed in 2A**
+- `interview/infra/JdbcInterviewRepository.update`: the conditional UPDATE now also requires `updated_at` to equal the value that was read (the table has no `version` column). Previously only the status was guarded, so two recruiters editing different fields of a `SCHEDULED` interview could silently overwrite each other. A lost race now yields 409 `STALE_VERSION`. `InterviewRepository` Javadoc updated. All callers derive the new state from a freshly read row (checked by reading).
+- New `test/.../interview/app/InterviewServiceAccessTest` (pure Mockito, no Docker): seeker ownership, recruiter company scope, foreign recruiter on read/update/cancel/complete/schedule, unknown ids, unapproved recruiter (403 `RECRUITER_NOT_APPROVED`), ADMIN refusal, list scoping incl. foreign `applicationId`, final-status and DECLINED invalid transitions, idempotent repeat answer, audit + event on schedule/cancel and no free text in event payloads.
+- Existing tests kept: `InterviewAuthorizationIT`, `InterviewLifecycleIT` (Docker), `InterviewStateMachineTest`, `InterviewSchedulingTest`, `InterviewApplicationEventsConsumerTest`.
+- Static check done in this session: the new test and repository change were run through `javac` against the project classes in `backend/target/classes`; no errors other than the unavailable third-party jars (Mockito, AssertJ, JUnit, Spring), and no project-symbol or constructor mismatches. This is not a build and not a test run.
+
+**Not completed / open**
+- Nothing was compiled by Maven, started or tested in this session. Run first: `cd backend && mvn -B -Dtest='Interview*Test' test`, then `mvn -B verify` (ITs need Docker).
+- No audit actions exist in DATABASE_SCHEMA §13 for reschedule, respond or complete, so none are written (not invented). Add them via a contract change if wanted.
+- Overlap check (`existsActiveOverlap`) is read-then-insert; two simultaneous schedule calls for one application can both pass. A DB exclusion constraint needs a schema change (not allowed in this session).
+- ADMIN access: ARCHITECTURE §9 lists admin "read", API_CONTRACT §12.7 lists none; the contract wins (403). Confirm with the owners.
+- `applicationIdsOfCompany/Seeker` feed an `IN (...)` list; fine for the current scale, replace with a join through a facade-provided query if lists grow large.
+- Interview event payloads and notification mapping are defined by this module (not by ARCHITECTURE); the notification owner (Dev 3 lane) must confirm. `NotificationKafkaConsumer` was already edited in the uploaded zip.
+
+**Carry-forward to Session 2B (frontend)**
+- Response shape and rules are in API_CONTRACT §12.7 ("Interview object"); frontend interview files already exist in the uploaded zip and were not touched or reviewed in 2A.
+- Hygiene: the uploaded zip contained `.env`, `.git`, `backend/target`, `frontend/.next`, `backend/.idea`; none are included in the 2A archive. Rotate anything in `.env` if it was ever shared.
+
+### Session 2A follow-up (still not built, run or tested)
+- Overlap race closed without a schema change: `JdbcInterviewRepository.existsActiveOverlap` now first takes a transaction-scoped Postgres advisory lock per application (`pg_advisory_xact_lock`), so concurrent schedule/reschedule calls for one application run their "check, then write" one after the other (callers are `@Transactional`). This replaces the earlier open item "non-atomic overlap check". A DB exclusion constraint would still be the stronger guarantee but needs a DATABASE_SCHEMA change.
+- Still open (needs a decision, not code): audit actions for reschedule/respond/complete are not in DATABASE_SCHEMA §13; ADMIN read access (ARCHITECTURE §9 says read, API_CONTRACT §12.7 lists none; contract followed).

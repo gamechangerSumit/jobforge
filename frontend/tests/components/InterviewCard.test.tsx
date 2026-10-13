@@ -74,3 +74,20 @@ test('recruiter gets no actions on final interviews, and only http(s) places are
   expect(screen.queryByRole('button', { name: 'Cancel interview' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: /javascript/i })).not.toBeInTheDocument();
 });
+
+test('seeker gets a plain-language note instead of buttons when nothing can be answered', () => {
+  const cancelled = renderCard({ ...base, status: 'CANCELLED', cancelledReason: 'Position filled' }, 'JOB_SEEKER');
+  expect(screen.getByTestId('seeker-notice')).toHaveTextContent(/was cancelled/i);
+  cancelled.unmount();
+  const declined = renderCard({ ...base, status: 'DECLINED', seekerResponse: 'DECLINED' }, 'JOB_SEEKER');
+  expect(screen.getByTestId('seeker-notice')).toHaveTextContent(/you declined this interview/i);
+  declined.unmount();
+  const started = renderCard({ ...base, scheduledAt: new Date(Date.now() - 3_600_000).toISOString() }, 'JOB_SEEKER');
+  expect(screen.getByTestId('seeker-notice')).toHaveTextContent(/already started/i);
+  started.unmount();
+  const done = renderCard({ ...base, status: 'COMPLETED' }, 'JOB_SEEKER');
+  expect(screen.getByTestId('seeker-notice')).toHaveTextContent(/is over/i);
+  done.unmount();
+  renderCard(base, 'JOB_SEEKER');
+  expect(screen.queryByTestId('seeker-notice')).not.toBeInTheDocument();
+});

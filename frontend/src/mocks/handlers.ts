@@ -1,10 +1,13 @@
 import { http, HttpResponse } from 'msw';
 import { freshState, ids, meta, page, type MockState } from './data';
+import { interviewHandlers, resetInterviewMocks } from './interviewHandlers';
 
 const B = '/api/v1';
 let state: MockState = freshState();
 /** Test/dev helper: restore fixtures. */
-export const resetMockState = () => { state = freshState(); };
+export const resetMockState = () => { state = freshState(); resetInterviewMocks(); };
+/** Test/dev helper: act as another role (the interview mocks answer per role, like the real API). */
+export const setMockRole = (role: MockState['account']['role']) => { state.account = { ...state.account, role }; };
 
 const ok = (data: unknown, extra: Record<string, unknown> = {}, init?: ResponseInit) => HttpResponse.json({ data, meta: meta(extra) }, init);
 const fail = (status: number, code: string, message: string, details?: { field: string; code: string; message: string }[]) =>
@@ -132,4 +135,5 @@ const adminHandlers = [
 export const handlers = [
   http.get(`${B}/jobs`, () => ok(jobs, page(0, 20, jobs.length))),
   ...accountHandlers, ...profileHandlers, ...companyHandlers, ...notificationHandlers, ...adminHandlers,
+  ...interviewHandlers(() => state.account.role),
 ];

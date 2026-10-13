@@ -41,3 +41,11 @@ test('update payload contains only changed fields and clears notes with a blank 
   expect(buildUpdatePayload(interviewFormSchema.parse({ ...valid, notes: 'old', time: '11:30' }), current)).toEqual({ scheduledAt: `${future}T11:30:00Z` });
   expect(buildUpdatePayload(interviewFormSchema.parse({ ...valid, notes: '' }), current)).toEqual({ notes: '' });
 });
+
+test('an interview stored with seconds is not reported as rescheduled when the form is saved unchanged', () => {
+  const current = {
+    id: 'i1', applicationId: 'a1', type: 'VIDEO', scheduledAt: `${future}T10:00:42.500Z`, durationMinutes: 45, timezone: 'UTC',
+    locationOrLink: 'https://meet.example.com/x', status: 'SCHEDULED', seekerResponse: 'PENDING', createdAt: '', updatedAt: '',
+  } as Interview;
+  expect(buildUpdatePayload(interviewFormSchema.parse(valid), current)).toEqual({});
+});

@@ -59,7 +59,10 @@ function SeekerActions({ interview }: { interview: Interview }) {
   const [error, setError] = useState('');
   const closed = interview.applicationStatus ? CLOSED_APPLICATION.includes(interview.applicationStatus) : false;
   const canAnswer = (interview.status === 'SCHEDULED' || interview.status === 'CONFIRMED') && !hasStarted(interview.scheduledAt) && !closed;
-  if (!canAnswer) return null;
+  if (!canAnswer) {
+    const notice = seekerNotice(interview, closed);
+    return notice ? <p data-testid="seeker-notice" className="w-full text-sm text-slate-600">{notice}</p> : null;
+  }
   const answer = async (response: SeekerChoice) => {
     setError('');
     try { await respond.mutateAsync({ response, ...(note.trim() ? { note: note.trim() } : {}) }); setNote(''); }
@@ -76,6 +79,16 @@ function SeekerActions({ interview }: { interview: Interview }) {
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
     </div>
   );
+}
+
+/** Why a seeker has no buttons on an interview (the status badge alone does not say what happens next). */
+function seekerNotice(i: Interview, applicationClosed: boolean): string | null {
+  if (i.status === 'CANCELLED') return 'This interview was cancelled.';
+  if (i.status === 'COMPLETED' || i.status === 'NO_SHOW') return 'This interview is over.';
+  if (applicationClosed) return null; // the closed-application banner already explains it
+  if (i.status === 'DECLINED') return 'You declined this interview. The recruiter can offer you a new time.';
+  if (hasStarted(i.scheduledAt)) return 'This interview has already started, so it can no longer be answered here.';
+  return null;
 }
 
 function RecruiterActions({ interview }: { interview: Interview }) {

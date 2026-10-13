@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { InterviewCard } from './InterviewCard';
 import { InterviewForm } from './InterviewForm';
 import { useInterviewList } from './hooks';
+import { InterviewLoadError, InterviewLoading } from './InterviewState';
 import type { ApplicationStatus } from '@/types/api';
 
 /**
@@ -23,8 +24,8 @@ export function ApplicationInterviewsPanel({ applicationId, status }: { applicat
       </div>
       {!canSchedule && items.length === 0 && <p className="mt-2 text-sm text-slate-600">Shortlist the candidate to schedule an interview.</p>}
       {scheduling && <div className="mt-3"><InterviewForm mode="schedule" applicationId={applicationId} onDone={() => setScheduling(false)} onCancel={() => setScheduling(false)} /></div>}
-      {q.isLoading && <p className="mt-3 text-sm text-slate-600">Loading interviews…</p>}
-      {q.isError && <p role="alert" className="mt-3 text-sm text-red-600">Interviews could not be loaded.</p>}
+      {q.isLoading && <InterviewLoading label="Loading interviews…" />}
+      {q.isError && <InterviewLoadError error={q.error} fallback="Interviews could not be loaded." onRetry={() => void q.refetch()} retrying={q.isFetching} />}
       <div className="mt-3 space-y-3">
         {items.map((i) => <InterviewCard key={i.id} interview={i} role="RECRUITER" showApplicationLink={false} />)}
         {q.data && canSchedule && items.length === 0 && !scheduling && <p className="text-sm text-slate-600">No interviews scheduled yet.</p>}
