@@ -1,3 +1,4 @@
+import { communityHandlers, resetCommunityMocks } from './communityHandlers';
 import { http, HttpResponse } from 'msw';
 import { freshState, ids, meta, page, type MockState } from './data';
 import { interviewHandlers, resetInterviewMocks } from './interviewHandlers';
@@ -5,7 +6,7 @@ import { interviewHandlers, resetInterviewMocks } from './interviewHandlers';
 const B = '/api/v1';
 let state: MockState = freshState();
 /** Test/dev helper: restore fixtures. */
-export const resetMockState = () => { state = freshState(); resetInterviewMocks(); };
+export const resetMockState = () => { state = freshState(); resetInterviewMocks(); resetCommunityMocks(); };
 /** Test/dev helper: act as another role (the interview mocks answer per role, like the real API). */
 export const setMockRole = (role: MockState['account']['role']) => { state.account = { ...state.account, role }; };
 
@@ -136,4 +137,5 @@ export const handlers = [
   http.get(`${B}/jobs`, () => ok(jobs, page(0, 20, jobs.length))),
   ...accountHandlers, ...profileHandlers, ...companyHandlers, ...notificationHandlers, ...adminHandlers,
   ...interviewHandlers(() => state.account.role),
+  ...communityHandlers(() => state.account.id),
 ];

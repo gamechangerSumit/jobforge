@@ -41,6 +41,14 @@ export interface ApiMeta {
   requestId: string;
   timestamp: string;
   page?: PageMeta;
+  cursor?: CursorMeta;
+}
+
+/** Cursor pagination meta (API_CONTRACT §4): opaque, signed cursor; next is null on the last page. */
+export interface CursorMeta {
+  next: string | null;
+  hasNext: boolean;
+  limit: number;
 }
 
 export interface PageMeta {

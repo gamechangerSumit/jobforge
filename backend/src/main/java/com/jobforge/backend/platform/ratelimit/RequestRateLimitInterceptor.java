@@ -29,11 +29,22 @@ public class RequestRateLimitInterceptor implements HandlerInterceptor {
         if (path.startsWith("/auth/") && !path.equals("/auth/me") && !path.equals("/auth/refresh")) {
             return RateLimitClass.AUTH;
         }
+        if (isCommunityWrite(method, path)) {
+            return RateLimitClass.WRITE_COMMUNITY;
+        }
         if (HttpMethod.GET.matches(method) && (path.equals("/jobs") || path.equals("/jobs/facets")
                 || path.matches("/jobs/[^/]+/similar") || path.equals("/skills") || path.equals("/users/search"))) {
             return RateLimitClass.SEARCH;
         }
         return RateLimitClass.DEFAULT;
+    }
+
+    /** Session 4: every non-GET community call and user/tag follow toggles (API_CONTRACT 9: 30/min per user). */
+    private static boolean isCommunityWrite(String method, String path) {
+        if (HttpMethod.GET.matches(method) || HttpMethod.HEAD.matches(method) || HttpMethod.OPTIONS.matches(method)) {
+            return false;
+        }
+        return path.startsWith("/community/") || path.matches("/users/[^/]+/follow");
     }
 
     @Override

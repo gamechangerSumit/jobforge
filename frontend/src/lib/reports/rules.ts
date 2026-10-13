@@ -9,8 +9,8 @@ export const REASONS = Object.keys(REASON_LABEL) as ReportReason[];
 export const TARGET_LABEL: Record<ReportTargetType, string> = { POST: 'Post', COMMENT: 'Comment', USER: 'User', JOB: 'Job', COMPANY: 'Company' };
 export const TARGET_TYPES = Object.keys(TARGET_LABEL) as ReportTargetType[];
 
-/** Targets a user can report today: POST/COMMENT answer 422 until the community module registers them. */
-export const REPORTABLE_TARGETS: ReportTargetType[] = ['JOB', 'COMPANY', 'USER'];
+/** Targets a user can report (POST/COMMENT since Session 4, when the community module registered its target ports). */
+export const REPORTABLE_TARGETS: ReportTargetType[] = ['JOB', 'COMPANY', 'USER', 'POST', 'COMMENT'];
 
 export const STATUS_LABEL: Record<ReportStatus, string> = { OPEN: 'Open', REVIEWING: 'Reviewing', RESOLVED: 'Resolved', DISMISSED: 'Dismissed' };
 export const STATUSES = Object.keys(STATUS_LABEL) as ReportStatus[];
@@ -20,8 +20,8 @@ export const ACTION_LABEL: Record<ModerationAction, string> = {
 };
 export const ACTION_HELP: Record<ModerationAction, string> = {
   DISMISS: 'No violation found. The report is closed as dismissed and nothing happens to the item.',
-  HIDE_CONTENT: 'Hide the content.',
-  REMOVE_CONTENT: 'Removes the job from the platform (the job moderation state machine applies).',
+  HIDE_CONTENT: 'Hides the post or comment from everyone except administrators (and the author of a post). Only active content can be hidden.',
+  REMOVE_CONTENT: 'Removes the item from the platform: a job follows the job moderation state machine; a post or comment is marked removed.',
   WARN_USER: 'Sends a warning notification to the user responsible for the item.',
   SUSPEND_USER: 'Suspends the user account. Administrators and your own account cannot be suspended.',
 };
@@ -37,7 +37,8 @@ export const isActive = (status: ReportStatus) => status === 'OPEN' || status ==
  * - closed reports: none (409 INVALID_STATE_TRANSITION)
  * - target no longer exists: only DISMISS
  * - JOB: DISMISS, WARN_USER, REMOVE_CONTENT · COMPANY: DISMISS, WARN_USER · USER: DISMISS, WARN_USER, SUSPEND_USER
- * - HIDE_CONTENT is unsupported for every target today; POST/COMMENT can only be dismissed.
+ * - POST/COMMENT (Session 4, decision D1): DISMISS, WARN_USER, HIDE_CONTENT, REMOVE_CONTENT. HIDE_CONTENT is unsupported
+ *   for JOB, COMPANY and USER.
  */
 export function allowedActions(report: { status: ReportStatus; targetType: ReportTargetType; targetAvailable: boolean }): ModerationAction[] {
   if (!isActive(report.status)) return [];
@@ -46,6 +47,8 @@ export function allowedActions(report: { status: ReportStatus; targetType: Repor
     case 'JOB': return ['DISMISS', 'WARN_USER', 'REMOVE_CONTENT'];
     case 'COMPANY': return ['DISMISS', 'WARN_USER'];
     case 'USER': return ['DISMISS', 'WARN_USER', 'SUSPEND_USER'];
+    case 'POST':
+    case 'COMMENT': return ['DISMISS', 'WARN_USER', 'HIDE_CONTENT', 'REMOVE_CONTENT'];
     default: return ['DISMISS'];
   }
 }
@@ -56,5 +59,6 @@ export function targetHref(type: ReportTargetType, id: string, available: boolea
   if (type === 'JOB') return `/jobs/${id}`;
   if (type === 'COMPANY') return `/admin/companies/${id}`;
   if (type === 'USER') return `/users/${id}`;
-  return null;
+  if (type === 'POST') return `/community/posts/${id}`;
+  return null; // comments have no page of their own
 }

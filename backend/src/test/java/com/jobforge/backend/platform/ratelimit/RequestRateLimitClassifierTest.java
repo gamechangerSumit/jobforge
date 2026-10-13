@@ -33,4 +33,14 @@ class RequestRateLimitClassifierTest {
         assertThat(RequestRateLimitInterceptor.classify("POST", "/api/v1/jobs")).isEqualTo(RateLimitClass.DEFAULT);
         assertThat(RequestRateLimitInterceptor.classify("GET", "/api/v1/companies/me")).isEqualTo(RateLimitClass.DEFAULT);
     }
+
+    @Test
+    void communityWritesUseTheWriteCommunityClassButReadsDoNot() {
+        assertThat(RequestRateLimitInterceptor.classify("POST", "/api/v1/community/posts")).isEqualTo(RateLimitClass.WRITE_COMMUNITY);
+        assertThat(RequestRateLimitInterceptor.classify("PUT", "/api/v1/community/posts/abc/like")).isEqualTo(RateLimitClass.WRITE_COMMUNITY);
+        assertThat(RequestRateLimitInterceptor.classify("DELETE", "/api/v1/community/comments/abc")).isEqualTo(RateLimitClass.WRITE_COMMUNITY);
+        assertThat(RequestRateLimitInterceptor.classify("PUT", "/api/v1/users/abc/follow")).isEqualTo(RateLimitClass.WRITE_COMMUNITY);
+        assertThat(RequestRateLimitInterceptor.classify("GET", "/api/v1/community/posts")).isEqualTo(RateLimitClass.DEFAULT);
+        assertThat(RequestRateLimitInterceptor.classify("PUT", "/api/v1/users/me")).isEqualTo(RateLimitClass.DEFAULT);
+    }
 }

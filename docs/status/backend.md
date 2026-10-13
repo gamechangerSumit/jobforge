@@ -113,3 +113,14 @@ Shared files touched (interview changes preserved; additions only): `AuditAction
 - Resolving `REMOVE_CONTENT` for a job already removed elsewhere returns 409 from the job state machine; admins should DISMISS.
 - Pre-existing: `USER_FORCE_LOGOUT` audit action used by `UserDirectoryService` is not in the DATABASE_SCHEMA §13 catalog.
 - Nothing in Session 3 or this fix pass was compiled, built, linted or run.
+
+
+## Session 4 - Community (backend + frontend) - static only, NOT compiled/built/run/tested
+
+- Scope: API_CONTRACT 12.9 community endpoints, POST/COMMENT report targets with HIDE_CONTENT/REMOVE_CONTENT, community events/notifications, WRITE_COMMUNITY rate limiting, community UI. Details: `docs/session4/SESSION4_REPORT.md`; contract text: API_CONTRACT 12.9.1, 12.9.2, 12.11.1 (+ CHANGELOG_CONTRACTS).
+- No new migration: `community/V202610070200__community_core.sql` already contains every table used.
+- Decisions applied (proposed in Stage A, not contradicted): D1 moderation matrix (HIDE -> HIDDEN, REMOVE -> REMOVED, WARN_USER, no SUSPEND_USER), D2 admin deletes audited as CONTENT_MODERATED only, D3 additive `UserSummaryFacade`, D4 additive cases in `NotificationKafkaConsumer`, D9 cursor HMAC key derived from the JWT secret (no new env var), D12 deleted/suspended authors are hidden from lists (likes/saves/follows rows are NOT hard-deleted: open item).
+- Session 3 behavior intentionally changed: reports on POST/COMMENT no longer return 422 (404 for unknown targets); `ReportFlowIT`, `report-rules.test.ts` and `RequestRateLimitClassifierTest` updated accordingly.
+- Fix pass (2026-10-11): UserDeleted event + community purge consumer, exact `comment_count` recount with reply cascade, SpamGuard (links/duplicates/volume), actor names in community notifications (details: API_CONTRACT 12.9.2). The user module now injects `EventPublisher` into `UserAccountService`.
+- Open items: trending cursor uses a live score (a post can shift between pages); notification text is plain English only (no i18n); posts/comments of deleted accounts stay stored (invisible).
+- Run before calling it verified: backend `mvn -q verify` (ArchUnit + new ITs, Docker), frontend `pnpm typecheck && pnpm lint && pnpm test`.
