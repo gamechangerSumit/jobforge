@@ -15,6 +15,7 @@ public final class TestDatabase {
         execute(pg,
                 "CREATE EXTENSION IF NOT EXISTS citext SCHEMA public",
                 "CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA public",
+                "CREATE EXTENSION IF NOT EXISTS unaccent SCHEMA public",
                 "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'jobforge_backend') "
                         + "THEN CREATE ROLE jobforge_backend NOLOGIN; END IF; END $$",
                 "CREATE SCHEMA IF NOT EXISTS core",

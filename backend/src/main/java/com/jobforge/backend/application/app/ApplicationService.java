@@ -117,8 +117,16 @@ public class ApplicationService {
 
     @Transactional
     public ApplicationView withdraw(AuthenticatedUser seeker, UUID applicationId) {
+        return withdraw(seeker, applicationId, null);
+    }
+
+    @Transactional
+    public ApplicationView withdraw(AuthenticatedUser seeker, UUID applicationId, Long ifMatch) {
         for (int attempt = 0; attempt < 2; attempt++) {
             Application application = access.requireSeekerOwned(seeker, applicationId);
+            if (ifMatch != null && ifMatch != application.version()) {
+                throw staleVersion();
+            }
             ApplicationStatusMachine.require(application.status(), ApplicationStatus.WITHDRAWN, Actor.SEEKER);
             Instant now = clock.instant();
             if (applications.updateStatus(applicationId, ApplicationStatus.WITHDRAWN, application.version(), now, true)) {
@@ -128,6 +136,9 @@ public class ApplicationService {
                         seeker.id(), seeker.role(), new ApplicationEvents.ApplicationWithdrawn(applicationId,
                                 application.jobId(), companyId, seeker.id())));
                 return views.seekerView(applications.findById(applicationId).orElseThrow(), true);
+            }
+            if (ifMatch != null) {
+                break; // the caller pinned a version: do not silently re-evaluate against a newer one
             }
         }
         throw staleVersion();

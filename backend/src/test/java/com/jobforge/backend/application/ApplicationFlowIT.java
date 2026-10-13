@@ -37,11 +37,20 @@ class ApplicationFlowIT extends ApiIntegrationTestSupport {
         String jobId = json.readTree(mvc.perform(authed(postJson("/jobs", Map.of(
                         "title", "Platform Engineer",
                         "description", "Build and operate reliable services for our hiring platform, working with Java and PostgreSQL daily.",
-                        "employmentType", "FULL_TIME", "workMode", "REMOTE", "experienceLevel", "MID")), recruiter))
+                        "employmentType", "FULL_TIME", "workMode", "REMOTE", "experienceLevel", "MID",
+                        "skills", java.util.List.of(Map.of("name", "Java", "required", true)))), recruiter))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).at("/data/id").asText();
         mvc.perform(authed(postJson("/jobs/" + jobId + "/publish", Map.of()), recruiter)).andExpect(status().isOk());
 
         Session seeker = ready(register("JOB_SEEKER"));
+        mvc.perform(authed(put(API + "/seekers/me/profile").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("headline", "Backend engineer"))), seeker))
+                .andExpect(status().isOk());
+        mvc.perform(authed(put(API + "/seekers/me/skills").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("skills", java.util.List.of(
+                                Map.of("skill", "Java", "proficiency", "ADVANCED", "years", 3))))), seeker))
+                .andExpect(status().isOk());
+
         MockMultipartFile file = new MockMultipartFile("file", "cv.pdf", "application/pdf",
                 "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF".getBytes(StandardCharsets.US_ASCII));
         String resumeId = json.readTree(mvc.perform(authed(multipart(API + "/seekers/me/resumes").file(file), seeker))

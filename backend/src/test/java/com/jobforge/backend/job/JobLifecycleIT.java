@@ -27,7 +27,8 @@ class JobLifecycleIT extends ApiIntegrationTestSupport {
         String created = mvc.perform(authed(postJson("/jobs", Map.of(
                         "title", "Backend Engineer",
                         "description", "Build and operate reliable services for our hiring platform, working with Java and PostgreSQL daily.",
-                        "employmentType", "FULL_TIME", "workMode", "REMOTE", "experienceLevel", "MID")), recruiter))
+                        "employmentType", "FULL_TIME", "workMode", "REMOTE", "experienceLevel", "MID",
+                        "skills", java.util.List.of(Map.of("name", "Java", "required", true)))), recruiter))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         var node = json.readTree(created).at("/data");
         return new Fixture(recruiter, admin, company, node.get("id").asText(), node.get("version").asLong());

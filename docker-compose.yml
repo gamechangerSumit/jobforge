@@ -194,7 +194,7 @@ services:
         condition: service_completed_successfully
     healthcheck:
       # The JRE image has no curl; probe the readiness endpoint over a raw TCP socket with bash.
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/${MANAGEMENT_PORT:-8080} && printf 'GET /actuator/health/readiness HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3"]
+      test: ["CMD", "bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/${MANAGEMENT_PORT:-8080} && printf 'GET /actuator/health/readiness HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3"]
       interval: 15s
       timeout: 5s
       retries: 10

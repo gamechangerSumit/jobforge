@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1091,SC2015
 # Waits for health checks, then runs functional checks against the local infrastructure.
 # Exit code 0 = everything OK. Usage: bash infrastructure/scripts/verify.sh   (VERIFY_TIMEOUT=seconds, default 180)
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT"
+cd "$ROOT" || exit 1
 [[ -f .env ]] || { echo "ERROR: .env missing - run infrastructure/scripts/gen-secrets.sh" >&2; exit 1; }
 set -a; source .env; set +a
 

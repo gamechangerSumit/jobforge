@@ -78,8 +78,9 @@ public class ApplicationController {
 
     @PostMapping("/applications/{id}/withdraw")
     @PreAuthorize("hasRole('JOB_SEEKER')")
-    public ResponseEntity<ApplicationView> withdraw(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id) {
-        return etag(applications.withdraw(caller, id));
+    public ResponseEntity<ApplicationView> withdraw(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id,
+            @RequestHeader(value = "If-Match", required = false) String ifMatch) {
+        return etag(applications.withdraw(caller, id, IfMatch.parse(ifMatch)));
     }
 
     // ---------------- shared
