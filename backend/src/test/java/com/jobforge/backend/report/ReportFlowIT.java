@@ -36,7 +36,7 @@ class ReportFlowIT extends ApiIntegrationTestSupport {
                         "title", "Reportable Engineer",
                         "description", "Build and operate reliable services for our hiring platform, working with Java and PostgreSQL daily.",
                         "employmentType", "FULL_TIME", "workMode", "REMOTE", "experienceLevel", "MID",
-                        "skills", java.util.List.of(Map.of("name", "java")))), recruiter))
+                        "skills", java.util.List.of(Map.of("name", "Java", "required", true), Map.of("name", "PostgreSQL", "required", true)))), recruiter))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).at("/data/id").asText();
     }
 
