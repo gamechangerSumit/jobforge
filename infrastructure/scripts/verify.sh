@@ -4,7 +4,7 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT"
+cd "$ROOT" || exit 1
 [[ -f .env ]] || { echo "ERROR: .env missing - run infrastructure/scripts/gen-secrets.sh" >&2; exit 1; }
 set -a; source .env; set +a
 
