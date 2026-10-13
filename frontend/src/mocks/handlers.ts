@@ -1,4 +1,5 @@
 import { communityHandlers, resetCommunityMocks } from './communityHandlers';
+import { analyticsHandlers } from './analyticsHandlers';
 import { http, HttpResponse } from 'msw';
 import { freshState, ids, meta, page, type MockState } from './data';
 import { interviewHandlers, resetInterviewMocks } from './interviewHandlers';
@@ -138,4 +139,5 @@ export const handlers = [
   ...accountHandlers, ...profileHandlers, ...companyHandlers, ...notificationHandlers, ...adminHandlers,
   ...interviewHandlers(() => state.account.role),
   ...communityHandlers(() => state.account.id),
+  ...analyticsHandlers(() => state.account.role),
 ];
