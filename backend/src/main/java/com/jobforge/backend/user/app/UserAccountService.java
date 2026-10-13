@@ -12,6 +12,9 @@ import com.jobforge.backend.shared.audit.AuditAction;
 import com.jobforge.backend.shared.audit.AuditEntry;
 import com.jobforge.backend.shared.audit.AuditService;
 import com.jobforge.backend.shared.config.ApiPaths;
+import com.jobforge.backend.shared.events.DomainEvent;
+import com.jobforge.backend.shared.events.EventPublisher;
+import com.jobforge.backend.shared.events.EventTopics;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
@@ -26,8 +29,11 @@ public class UserAccountService implements UserFacade {
     private final ObjectStorage storage;
     private final AuditService audit;
     private final Clock clock;
+    private final EventPublisher events;
 
-    public UserAccountService(UserRepository users, ObjectStorage storage, AuditService audit, Clock clock) {
+    public UserAccountService(UserRepository users, ObjectStorage storage, AuditService audit, Clock clock,
+            EventPublisher events) {
+        this.events = events;
         this.users = users;
         this.storage = storage;
         this.audit = audit;
@@ -110,6 +116,9 @@ public class UserAccountService implements UserFacade {
         users.anonymize(userId, "deleted-" + suffix + "@deleted.invalid", "deleted_" + suffix, unusablePasswordHash,
                 clock.instant());
         audit.record(AuditEntry.success(AuditAction.USER_DELETED, "User", userId, userId, user.role()));
+        // Session 4: lets other modules (community) purge likes/saves/follows of the deleted account (API_CONTRACT 12.2/12.9.2)
+        events.publish(new DomainEvent(EventTopics.USERS, "UserDeleted", "User", userId, userId, user.role(),
+                new UserEvents.UserDeleted(userId)));
     }
 
     // ---- avatar ----

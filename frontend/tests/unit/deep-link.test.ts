@@ -32,3 +32,10 @@ test('rejects malformed ids and returns null when nothing matches', () => {
   expect(notificationHref({ type: 'COMPANY_VERIFIED', data: {} }, 'RECRUITER')).toBe('/recruiter/company');
   expect(notificationHref({ type: 'COMPANY_VERIFIED', data: {} }, 'JOB_SEEKER')).toBeNull();
 });
+
+test('community notifications lead to the post or the new follower', () => {
+  expect(notificationHref({ type: 'POST_LIKED', data: { postId: id, actorId: id } })).toBe(`/community/posts/${id}`);
+  expect(notificationHref({ type: 'COMMENT_REPLIED', data: { postId: id, commentId: id } })).toBe(`/community/posts/${id}`);
+  expect(notificationHref({ type: 'USER_FOLLOWED', data: { actorId: id } })).toBe(`/users/${id}`);
+  expect(notificationHref({ type: 'POST_LIKED', data: { postId: '../x' } })).toBeNull();
+});

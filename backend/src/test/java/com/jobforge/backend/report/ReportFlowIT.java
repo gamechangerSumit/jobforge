@@ -87,10 +87,9 @@ class ReportFlowIT extends ApiIntegrationTestSupport {
         mvc.perform(authed(postJson("/reports", body("JOB", someId, "NOPE")), seeker)).andExpect(status().isBadRequest());
         mvc.perform(authed(postJson("/reports", Map.of("targetType", "JOB", "targetId", someId.toString(),
                 "reason", "SPAM", "details", "x".repeat(1001))), seeker)).andExpect(status().isBadRequest());
-        // community content cannot be validated until the community module registers its target ports
-        mvc.perform(authed(postJson("/reports", body("POST", someId, "SPAM")), seeker)).andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.error.code").value("BUSINESS_RULE_VIOLATED"));
-        mvc.perform(authed(postJson("/reports", body("COMMENT", someId, "SPAM")), seeker)).andExpect(status().isUnprocessableEntity());
+        // Session 4: POST/COMMENT ports are registered, so an unknown community target is simply not found
+        mvc.perform(authed(postJson("/reports", body("POST", someId, "SPAM")), seeker)).andExpect(status().isNotFound());
+        mvc.perform(authed(postJson("/reports", body("COMMENT", someId, "SPAM")), seeker)).andExpect(status().isNotFound());
     }
 
     @Test

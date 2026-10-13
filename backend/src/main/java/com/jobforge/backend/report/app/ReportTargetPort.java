@@ -10,7 +10,7 @@ import java.util.UUID;
 /**
  * Adapter contract between the report module and the module owning a reportable resource. Implementations live in
  * {@code report.infra} and talk to the owning module through its facade only (ARCHITECTURE rule 2). The community
- * module registers POST/COMMENT ports later; until then those target types cannot be reported.
+ * module registers the POST/COMMENT ports (Session 4).
  */
 public interface ReportTargetPort {
 
