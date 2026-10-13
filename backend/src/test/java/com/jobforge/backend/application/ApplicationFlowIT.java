@@ -43,6 +43,14 @@ class ApplicationFlowIT extends ApiIntegrationTestSupport {
         mvc.perform(authed(postJson("/jobs/" + jobId + "/publish", Map.of()), recruiter)).andExpect(status().isOk());
 
         Session seeker = ready(register("JOB_SEEKER"));
+        mvc.perform(authed(put(API + "/seekers/me/profile").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("headline", "Backend engineer"))), seeker))
+                .andExpect(status().isOk());
+        mvc.perform(authed(put(API + "/seekers/me/skills").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("skills", java.util.List.of(
+                                Map.of("skill", "Java", "proficiency", "ADVANCED", "years", 3))))), seeker))
+                .andExpect(status().isOk());
+
         MockMultipartFile file = new MockMultipartFile("file", "cv.pdf", "application/pdf",
                 "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF".getBytes(StandardCharsets.US_ASCII));
         String resumeId = json.readTree(mvc.perform(authed(multipart(API + "/seekers/me/resumes").file(file), seeker))
