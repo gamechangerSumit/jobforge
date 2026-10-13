@@ -185,7 +185,7 @@ class CommunityFlowIT extends CommunityTestBase {
 
         // REMOVE_CONTENT on the post removes it from every public view
         mvc.perform(authed(postJson("/admin/reports/" + postReport + "/resolve",
-                Map.of("action", "REMOVE_CONTENT", "reason", "spam post content")), admin)).andExpect(status().isOk());
+                Map.of("action", "REMOVE_CONTENT", "reason", "spam post")), admin)).andExpect(status().isOk());
         assertEquals("REMOVED", jdbc.queryForObject("SELECT status FROM community.posts WHERE id = ?::uuid", String.class, post));
         mvc.perform(authedGet("/community/posts/" + post, reporter)).andExpect(status().isNotFound());
         assertEquals(1, intAt("SELECT count(*) FROM core.audit_logs WHERE action = 'CONTENT_MODERATED' AND entity_id = ?::uuid", post));

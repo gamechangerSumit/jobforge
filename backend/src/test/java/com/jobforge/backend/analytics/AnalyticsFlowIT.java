@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -49,6 +50,13 @@ class AnalyticsFlowIT extends ApiIntegrationTestSupport {
     /** Applies as a fresh seeker and returns the application id. */
     private String apply(String jobId) throws Exception {
         Session seeker = ready(register("JOB_SEEKER"));
+        mvc.perform(authed(put(API + "/seekers/me/profile").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("headline", "Backend engineer"))), seeker))
+                .andExpect(status().isOk());
+        mvc.perform(authed(put(API + "/seekers/me/skills").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("skills", List.of(
+                                Map.of("skill", "Java", "proficiency", "ADVANCED", "years", 3))))), seeker))
+                .andExpect(status().isOk());
         MockMultipartFile file = new MockMultipartFile("file", "cv.pdf", "application/pdf",
                 "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF".getBytes(StandardCharsets.US_ASCII));
         String resumeId = json.readTree(mvc.perform(authed(multipart(API + "/seekers/me/resumes").file(file), seeker))
