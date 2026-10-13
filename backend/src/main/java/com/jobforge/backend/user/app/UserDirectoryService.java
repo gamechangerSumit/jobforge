@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class UserDirectoryService {
+public class UserDirectoryService implements com.jobforge.backend.user.facade.UserModerationFacade {
 
     private static final int SEARCH_LIMIT = 10;
 
@@ -80,6 +80,12 @@ public class UserDirectoryService {
                 AuditOutcome.SUCCESS, Map.of("status", current.status()), Map.of("status", newStatus),
                 Map.of("reason", reason)));
         return adminDetail(id);
+    }
+
+    @Override
+    @Transactional
+    public void suspend(AuthenticatedUser moderator, UUID userId, String reason) {
+        changeStatus(moderator, userId, "SUSPENDED", reason);
     }
 
     @Transactional

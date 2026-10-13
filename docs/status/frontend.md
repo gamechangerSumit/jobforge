@@ -57,3 +57,18 @@ Recruiter and seeker interview pages, schedule/reschedule/cancel/complete/respon
 - Time zone field now suggests IANA zones through a `<datalist>` (`timeZoneOptions()` in `lib/interviews/time.ts`, browser list with a small fallback); free text is still validated by Zod. Tests: `interview-time.test.ts`, `InterviewForm.test.tsx`.
 - Seekers now get a plain-language note when they have no buttons (cancelled, over, declined, already started); closed applications keep the existing banner. Test in `InterviewCard.test.tsx`.
 - Still open: run typecheck/lint/test/e2e (not allowed in these sessions); replace hand-written types after `pnpm gen:api`; calendar view, ICS export and reminders (not in the contract, not invented).
+
+
+## Session 3B — Reports & Moderation frontend (static implementation, NOT built/linted/tested)
+
+- **Report submission** (`features/reports/ReportButton`, `ReportForm`) on `/jobs/[id]`, `/companies/[id]`, `/users/[id]` (own profile hidden); RHF + Zod (`lib/validation/reports.ts`); errors mapped (409 already reported, 404 unavailable, 422 server message, 429, 401). Private details are never shown back to the reporter.
+- **Admin queue** `/admin/reports` (`AdminReportQueue`): status (default OPEN) / target type / reason filters, oldest/newest order, 20 per page; loading, empty, error+retry, 403 states.
+- **Report detail** `/admin/reports/[id]` (`AdminReportDetailView`): reporter display name, target label/status/availability ("No longer available" when `available=false`), private details as escaped text, moderation history.
+- **Decision** (`ResolvePanel`, `lib/reports/rules.ts#allowedActions`): JOB = DISMISS/WARN_USER/REMOVE_CONTENT, COMPANY = DISMISS/WARN_USER, USER = DISMISS/WARN_USER/SUSPEND_USER, vanished target = DISMISS, closed report = none; HIDE_CONTENT never offered. Reason 10–500 Unicode code points after trimming (`resolveFormSchema`, `codePointLength`; the textarea has no `maxLength`, which would count UTF-16 units). The backend rule (S3-01, `AdminReportController.normalizeReason`) exists in source and uses the same trim set and code-point count; neither the backend nor the frontend tests have been run; REMOVE_CONTENT / SUSPEND_USER need a confirmation checkbox.
+- Header "Reports" link for ADMIN. Contract: API_CONTRACT §12.9.1 / §12.11.1.
+- Tests (NOT run; emoji/boundary cases added to `report-schema.test.ts` and `ResolvePanel.test.tsx`): `tests/unit/{report-rules,report-schema}.test.ts`, `tests/components/{ReportForm,ResolvePanel}.test.tsx`, `tests/e2e/reports.spec.ts` (mocked API).
+
+### Gaps
+1. Report `details`: `reportFormSchema` now checks the raw value against 1000 UTF-16 code units (`.max`) before trimming (`.transform(trim)`), matching the backend; whitespace-only values become blank and are omitted. Source change only; tests (`report-schema.test.ts`, `ReportForm.test.tsx`) added, NOT RUN. Only the resolve reason uses code points.
+2. Queue DTO has no target label; queue filters are component state, not URL; own job/company cannot be detected on public pages (API 422 shown); dev MSW mocks not extended for reports.
+3. No "my reports" page and no "start review" button (no endpoints).

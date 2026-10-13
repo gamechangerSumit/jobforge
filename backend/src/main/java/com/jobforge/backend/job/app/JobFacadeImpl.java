@@ -6,6 +6,7 @@ import com.jobforge.backend.job.facade.JobFacade;
 import com.jobforge.backend.job.facade.JobViews.JobAdminView;
 import com.jobforge.backend.job.facade.JobViews.JobApplyView;
 import com.jobforge.backend.job.facade.JobViews.JobLiteView;
+import com.jobforge.backend.job.facade.JobViews.JobReportView;
 import com.jobforge.backend.job.facade.JobViews.JobSummaryView;
 import com.jobforge.backend.shared.api.PagedResult;
 import java.time.Clock;
@@ -64,6 +65,13 @@ public class JobFacadeImpl implements JobFacade {
     @Transactional(readOnly = true)
     public Optional<UUID> companyIdOf(UUID jobId) {
         return jobs.findById(jobId).map(Job::companyId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<JobReportView> reportView(UUID jobId) {
+        return jobs.findById(jobId).map(j -> new JobReportView(j.id(), j.content().title(), j.status().name(),
+                j.companyId(), j.createdBy(), j.isOpenAt(clock.instant())));
     }
 
     @Override

@@ -89,6 +89,10 @@ public class NotificationKafkaConsumer {
             case "CompanyVerified" ->
                     moderationOutcome(event, "ownerId", "COMPANY_VERIFIED", "Company verified",
                             "Your company was verified. Approved recruiters can now publish jobs.");
+            case "ContentModerated" ->
+                    moderationOutcome(event, "ownerUserId", "CONTENT_MODERATED", "Moderation notice",
+                            "A moderator took action on content or an account linked to you after a report. "
+                                    + "Please review the community guidelines.");
             case "CompanyRejected" ->
                     moderationOutcome(event, "ownerId", "COMPANY_REJECTED", "Company verification rejected",
                             "Your company verification was rejected. Review the company page for the reason.");
