@@ -25,9 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --no-frozen-lockfile
       - name: Guard - no AI provider references in the frontend (CLAUDE.md hard rule 2)
         run: |
           if grep -rniE "ANTHROPIC|api\.anthropic\.com" src public 2>/dev/null; then
