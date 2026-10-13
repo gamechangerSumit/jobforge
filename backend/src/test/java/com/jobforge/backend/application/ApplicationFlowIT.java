@@ -37,7 +37,8 @@ class ApplicationFlowIT extends ApiIntegrationTestSupport {
         String jobId = json.readTree(mvc.perform(authed(postJson("/jobs", Map.of(
                         "title", "Platform Engineer",
                         "description", "Build and operate reliable services for our hiring platform, working with Java and PostgreSQL daily.",
-                        "employmentType", "FULL_TIME", "workMode", "REMOTE", "experienceLevel", "MID")), recruiter))
+                        "employmentType", "FULL_TIME", "workMode", "REMOTE", "experienceLevel", "MID",
+                        "skills", java.util.List.of(Map.of("name", "Java", "required", true)))), recruiter))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).at("/data/id").asText();
         mvc.perform(authed(postJson("/jobs/" + jobId + "/publish", Map.of()), recruiter)).andExpect(status().isOk());
 
