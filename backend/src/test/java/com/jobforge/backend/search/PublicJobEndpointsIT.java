@@ -57,7 +57,11 @@ class PublicJobEndpointsIT extends ApiIntegrationTestSupport {
         Session seeker = ready(register("JOB_SEEKER"));
         mvc.perform(authedGet("/recruiters/me/jobs", seeker)).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("ACCESS_DENIED"));
-        mvc.perform(authed(postJson("/jobs", Map.of("title", "Backend Engineer")), seeker)).andExpect(status().isForbidden());
+        mvc.perform(authed(postJson("/jobs", Map.of(
+                        "title", "Backend Engineer",
+                        "description", "Build and operate reliable services for our hiring platform, working with Java and PostgreSQL daily.",
+                        "employmentType", "FULL_TIME", "workMode", "REMOTE", "experienceLevel", "MID")), seeker))
+                .andExpect(status().isForbidden());
         mvc.perform(authedGet("/jobs/" + someJob + "/applications", seeker)).andExpect(status().isForbidden());
     }
 
