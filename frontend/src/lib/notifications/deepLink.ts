@@ -17,6 +17,11 @@ export function notificationHref(n: Pick<AppNotification, 'type' | 'data'>, role
   if (applicationId) return role === 'RECRUITER' ? `/recruiter/applications/${applicationId}` : `/applications/${applicationId}`;
   const jobId = id('jobId');
   if (jobId) return `/jobs/${jobId}`;
+  // community notifications (Session 4): post/comment/mention -> the post, new follower -> the follower's profile
+  const postId = id('postId');
+  if (postId) return `/community/posts/${postId}`;
+  const actorId = id('actorId');
+  if (actorId && n.type === 'USER_FOLLOWED') return `/users/${actorId}`;
   if (n.type.startsWith('RECRUITER_') || n.type.startsWith('COMPANY_')) return role === 'RECRUITER' ? '/recruiter/company' : null;
   return null;
 }

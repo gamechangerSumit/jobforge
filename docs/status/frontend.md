@@ -72,3 +72,12 @@ Recruiter and seeker interview pages, schedule/reschedule/cancel/complete/respon
 1. Report `details`: `reportFormSchema` now checks the raw value against 1000 UTF-16 code units (`.max`) before trimming (`.transform(trim)`), matching the backend; whitespace-only values become blank and are omitted. Source change only; tests (`report-schema.test.ts`, `ReportForm.test.tsx`) added, NOT RUN. Only the resolve reason uses code points.
 2. Queue DTO has no target label; queue filters are component state, not URL; own job/company cannot be detected on public pages (API 422 shown); dev MSW mocks not extended for reports.
 3. No "my reports" page and no "start review" button (no endpoints).
+
+
+## Session 4 - Community UI - static only, NOT compiled/built/run/tested
+
+- New: `/community` (feed: latest/following/trending, type/tag/search filters, trending tags, load more), `/community/new`, `/community/posts/[id]` (detail, `?edit=1`, comments with replies), `/community/saved`; `features/community/*`, `lib/api/community.ts`, `lib/validation/community.ts`, `types/community.ts`, MSW `mocks/communityHandlers.ts`.
+- Shared changes (additive): `api.getCursorPage` + `CursorMeta` type, report rules for POST/COMMENT (HIDE_CONTENT/REMOVE_CONTENT offered), Header "Community" link.
+- Post and comment bodies render as plain text; links come only from https metadata. Server errors map back to form fields.
+- Tests written, NOT RUN: `tests/unit/community-schema.test.ts`, `tests/components/PostCard.test.tsx`, updated `tests/unit/report-rules.test.ts`. No Playwright e2e added.
+- Fix pass: Playwright spec `tests/e2e/community.spec.ts` (mocked API; NOT RUN); notification deep links for community types (`postId` -> post, USER_FOLLOWED -> profile) with a unit test.

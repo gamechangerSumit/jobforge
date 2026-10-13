@@ -18,3 +18,9 @@ Format: `YYYY-MM-DD | doc §section | summary | PR #` (PR numbers filled when th
 2026-10-10 | API_CONTRACT §12.9.1, §12.11.1 | POST /reports 201 sets Location: /api/v1/admin/reports/{id} (ADMIN-readable only; no reporter read endpoint in v1); resolve reason trim set clarified (Unicode whitespace incl. NBSP/BOM) and counted in code points | TBD
 2026-10-10 | API_CONTRACT §12.9.1, §12.11.1 | Clarified: report details limit is 1000 UTF-16 code units (no behavior change); Location URI is an admin resource (no reporter read endpoint in v1); v1 decisions recorded: DEFAULT rate class, admin report notifications deferred, POST/COMMENT targets and HIDE_CONTENT deferred to Community session | TBD
 2026-10-10 | API_CONTRACT §12.9.1 | Clarified report details normalization: raw 1000 UTF-16 code-unit check before trimming, then ECMAScript-whitespace trim (same set as resolve reason); empty after trim = omitted | TBD
+2026-10-10 | API_CONTRACT §12.9.1 | POST and COMMENT become reportable targets (visibility, 404/422/409 rules) | TBD
+2026-10-10 | API_CONTRACT §12.11.1 | Moderation matrix for POST/COMMENT: DISMISS, WARN_USER, HIDE_CONTENT (ACTIVE→HIDDEN), REMOVE_CONTENT (→REMOVED); SUSPEND_USER unsupported | TBD
+2026-10-10 | API_CONTRACT §12.9.2 | Community behavior addendum: visibility, feed semantics, cursors, counters, comment/tag DTOs, follow rules, mentions, audit, events, notifications | TBD
+2026-10-10 | ARCHITECTURE §15 | WRITE_COMMUNITY rate class applied to non-GET /community/** and /users/{id}/follow (30/min/user) | TBD
+2026-10-11 | API_CONTRACT §12.9.2 | Fix pass: exact comment_count, replies hidden with their parent, anti-spam limits (links, duplicates, volume, 429), UserDeleted purge of community interactions, notification text names the actor | TBD
+2026-10-11 | ARCHITECTURE §14 | New event UserDeleted {userId} on jobforge.users.v1 (published by DELETE /users/me, consumed by the community module) | TBD
