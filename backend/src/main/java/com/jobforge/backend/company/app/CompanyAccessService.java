@@ -39,6 +39,12 @@ public class CompanyAccessService implements CompanyAccessFacade {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<UUID> ownerOf(UUID companyId) {
+        return companyRepository.findById(companyId).flatMap(c -> companyRepository.ownerOf(companyId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<String> accountDeletionBlocker(UUID userId) {
         Optional<Membership> membership = companies.findMembership(userId);
         if (membership.isEmpty() || !"OWNER".equals(membership.get().memberRole())) {

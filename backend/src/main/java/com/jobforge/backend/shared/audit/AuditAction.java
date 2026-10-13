@@ -18,6 +18,10 @@ public final class AuditAction {
     public static final String JOB_CLOSED = "JOB_CLOSED";
     public static final String JOB_DELETED = "JOB_DELETED";
     public static final String JOB_REMOVED = "JOB_REMOVED";
+    /** DATABASE_SCHEMA 13 audit catalog: report lifecycle and consequential moderation outcomes. */
+    public static final String REPORT_FILED = "REPORT_FILED";
+    public static final String REPORT_RESOLVED = "REPORT_RESOLVED";
+    public static final String CONTENT_MODERATED = "CONTENT_MODERATED";
     public static final String JOB_RESTORED = "JOB_RESTORED";
     public static final String APPLICATION_SUBMITTED = "APPLICATION_SUBMITTED";
     public static final String APPLICATION_STATUS_CHANGED = "APPLICATION_STATUS_CHANGED";

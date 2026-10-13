@@ -33,6 +33,12 @@ public interface JobFacade {
 
     Optional<UUID> companyIdOf(UUID jobId);
 
+    /**
+     * Moderation/report view of a non-deleted job in ANY status (never exposes job content beyond the title).
+     * {@code publiclyVisible} is true only for PUBLISHED, unexpired jobs.
+     */
+    Optional<JobViews.JobReportView> reportView(UUID jobId);
+
     List<UUID> jobIdsOfCompany(UUID companyId);
 
     PagedResult<JobAdminView> adminSearch(String q, String status, UUID companyId, int page, int size);

@@ -13,6 +13,9 @@ public final class JobViews {
 
     public record LocationView(String city, String state, String country) {}
 
+    /** Minimal job data for the report module: no description, requirements or salary. */
+    public record JobReportView(UUID id, String title, String status, UUID companyId, UUID createdBy, boolean publiclyVisible) {}
+
     public record SalaryView(Long min, Long max, String currency, String period) {}
 
     /** JobSummary (API_CONTRACT §11). {@code saved}/{@code applied} are present only for authenticated seekers. */
