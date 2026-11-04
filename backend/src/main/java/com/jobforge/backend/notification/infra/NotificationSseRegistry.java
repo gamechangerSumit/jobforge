@@ -2,57 +2,33 @@ package com.jobforge.backend.notification.infra;
 
 import com.jobforge.backend.notification.app.NotificationResponse;
 import com.jobforge.backend.notification.app.NotificationStreamPublisher;
-import java.time.Instant;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.scheduling.annotation.Scheduled;
+import java.util.function.Consumer;
 import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-/** HTTP/SSE adapter for per-user live notification delivery. */
+/** Transport-neutral registry of live notification listeners. */
 @Component
 public class NotificationSseRegistry implements NotificationStreamPublisher {
-    private final Map<UUID, Set<SseEmitter>> streams = new ConcurrentHashMap<>();
-
-    public SseEmitter subscribe(UUID userId) {
-        SseEmitter emitter = new SseEmitter(0L);
-        streams.computeIfAbsent(userId, ignored -> ConcurrentHashMap.newKeySet()).add(emitter);
-        emitter.onCompletion(() -> remove(userId, emitter));
-        emitter.onTimeout(() -> remove(userId, emitter));
-        emitter.onError(error -> remove(userId, emitter));
-        try { emitter.send(SseEmitter.event().name("ping").data(Map.of("at", Instant.now().toString()))); }
-        catch (Exception ex) { remove(userId, emitter); }
-        return emitter;
-    }
+    private final ConcurrentHashMap<UUID, Set<Consumer<NotificationResponse>>> listeners = new ConcurrentHashMap<>();
 
     @Override
     public void publish(UUID userId, NotificationResponse notification) {
-        Set<SseEmitter> emitters = streams.get(userId);
-        if (emitters == null) return;
-        for (SseEmitter emitter : emitters) {
-            try {
-                emitter.send(SseEmitter.event().name("notification").id(notification.id().toString()).data(notification));
-            } catch (Exception ex) {
-                remove(userId, emitter);
+        Set<Consumer<NotificationResponse>> subscribers = listeners.get(userId);
+        if (subscribers == null) return;
+        subscribers.forEach(listener -> listener.accept(notification));
+    }
+
+    @Override
+    public AutoCloseable subscribe(UUID userId, Consumer<NotificationResponse> listener) {
+        listeners.computeIfAbsent(userId, ignored -> ConcurrentHashMap.newKeySet()).add(listener);
+        return () -> {
+            Set<Consumer<NotificationResponse>> subscribers = listeners.get(userId);
+            if (subscribers != null) {
+                subscribers.remove(listener);
+                if (subscribers.isEmpty()) listeners.remove(userId, subscribers);
             }
-        }
-    }
-
-    @Scheduled(fixedRate = 25_000)
-    public void heartbeat() {
-        streams.forEach((userId, emitters) -> emitters.forEach(emitter -> {
-            try { emitter.send(SseEmitter.event().name("ping").data(Map.of("at", Instant.now().toString()))); }
-            catch (Exception ex) { remove(userId, emitter); }
-        }));
-    }
-
-    private void remove(UUID userId, SseEmitter emitter) {
-        Set<SseEmitter> emitters = streams.get(userId);
-        if (emitters != null) {
-            emitters.remove(emitter);
-            if (emitters.isEmpty()) streams.remove(userId, emitters);
-        }
+        };
     }
 }
