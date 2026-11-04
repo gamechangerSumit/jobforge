@@ -36,7 +36,8 @@ class NotificationCursorCodecTest {
                 Clock.fixed(NOW, ZoneOffset.UTC));
         assertThat(codec.decode(null)).isNull();
         String cursor = codec.encode(NOW, UUID.randomUUID());
-        String tampered = cursor.substring(0, cursor.length() - 1) + (cursor.endsWith("A") ? "B" : "A");
+        String[] parts = cursor.split("\\.", -1);
+        String tampered = (parts[0].startsWith("A") ? "B" : "A") + parts[0].substring(1) + "." + parts[1];
         assertThatThrownBy(() -> codec.decode(tampered)).isInstanceOf(ApiException.class);
     }
 }
