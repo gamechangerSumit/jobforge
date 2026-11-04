@@ -65,8 +65,8 @@ public class NotificationService {
             }
 
             if (emailEnabled) {
-                String recipient = jdbc.queryForObject("SELECT email::text FROM core.users WHERE id = ? AND deleted_at IS NULL",
-                        String.class, userId);
+                String recipient = jdbc.query("SELECT email::text FROM core.users WHERE id = ? AND deleted_at IS NULL",
+                        (rs, row) -> rs.getString(1), userId).stream().findFirst().orElse(null);
                 if (recipient != null && !recipient.isBlank()) {
                     String payload = mapper.writeValueAsString(Map.of("title", title, "body", body));
                     jdbc.update("""
