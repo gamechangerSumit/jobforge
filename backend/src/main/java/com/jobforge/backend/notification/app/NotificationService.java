@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobforge.backend.shared.api.CursorMeta;
 import com.jobforge.backend.shared.api.CursorResponse;
+import com.jobforge.backend.shared.error.ValidationFailedException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -127,10 +128,10 @@ public class NotificationService {
     }
 
     public List<NotificationPreference> updatePreferences(UUID userId, List<NotificationPreference> preferences) {
-        if (preferences == null) throw new IllegalArgumentException("Preferences are required.");
+        if (preferences == null) throw ValidationFailedException.of("preferences", "NOT_NULL", "Preferences are required.");
         for (NotificationPreference preference : preferences) {
             if (preference == null || !TYPES.contains(preference.type())) {
-                throw new IllegalArgumentException("Unknown notification preference type.");
+                throw ValidationFailedException.of("type", "INVALID_ENUM", "Unknown notification preference type.");
             }
             jdbc.update("""
                 INSERT INTO platform.notification_preferences(user_id,type,in_app_enabled,email_enabled)
