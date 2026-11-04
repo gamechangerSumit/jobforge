@@ -34,6 +34,7 @@ public class NotificationCursorCodec {
 
     public Position decode(String cursor) {
         if (cursor == null || cursor.isBlank()) return null;
+        if (cursor.length() > 1024) throw invalid();
         try {
             String[] token = cursor.split("\\.", -1);
             if (token.length != 2) throw invalid();
