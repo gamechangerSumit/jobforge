@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 
 const api = vi.hoisted(() => ({
-  unreadCount: vi.fn(), listNotifications: vi.fn(), markNotificationRead: vi.fn(), markAllNotificationsRead: vi.fn(),
+  unreadCount: vi.fn(), listNotifications: vi.fn(), markNotificationRead: vi.fn(), markAllNotificationsRead: vi.fn(), streamNotifications: vi.fn(),
 }));
 vi.mock('@/lib/api/notifications', () => api);
 vi.mock('@/lib/auth/session', () => ({ useSession: () => ({ user: { role: 'JOB_SEEKER' }, loading: false }) }));
@@ -18,14 +18,15 @@ beforeEach(() => {
   Object.values(api).forEach((m) => m.mockReset());
   api.markNotificationRead.mockResolvedValue(undefined);
   api.markAllNotificationsRead.mockResolvedValue(undefined);
+  api.streamNotifications.mockResolvedValue(undefined);
 });
 
 test('shows the unread count and links notifications to their target', async () => {
   api.unreadCount.mockResolvedValue({ count: 2 });
-  api.listNotifications.mockResolvedValue([
+  api.listNotifications.mockResolvedValue({ items: [
     { id: 'n1', type: 'APPLICATION_STATUS_CHANGED', title: 'Status updated', body: 'Shortlisted', data: { applicationId: appId }, readAt: null, createdAt: '2026-01-01T00:00:00Z' },
     { id: 'n2', type: 'OTHER', title: 'No target', body: null, data: {}, readAt: '2026-01-01T00:00:00Z', createdAt: '2026-01-01T00:00:00Z' },
-  ]);
+  ], next: null, hasNext: false, limit: 20 });
   wrap(<NotificationBell />);
   const button = await screen.findByRole('button', { name: /Notifications, 2 unread/ });
   await userEvent.click(button);
@@ -37,7 +38,7 @@ test('shows the unread count and links notifications to their target', async () 
 
 test('mark all read calls the API', async () => {
   api.unreadCount.mockResolvedValue({ count: 1 });
-  api.listNotifications.mockResolvedValue([]);
+  api.listNotifications.mockResolvedValue({ items: [], next: null, hasNext: false, limit: 20 });
   wrap(<NotificationBell />);
   await userEvent.click(await screen.findByRole('button', { name: /Notifications, 1 unread/ }));
   await userEvent.click(await screen.findByRole('button', { name: 'Mark all read' }));
