@@ -39,21 +39,40 @@ public class NotificationService {
         this.cursors = cursors;
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void create(UUID userId, String type, String title, String body, Map<String, Object> data, String dedupeKey) {
         try {
-            String json = mapper.writeValueAsString(data);
-            UUID id = UUID.randomUUID();
-            Instant created = Instant.now();
-            jdbc.update("""
-                INSERT INTO platform.notifications (id,user_id,type,title,body,data,dedupe_key,created_at)
-                VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?)
-                """, id, userId, type, title, body, json, dedupeKey, created);
-            NotificationResponse response = new NotificationResponse(id, type, title, body, data, null, created);
-            Set<SseEmitter> emitters = streams.get(userId);
-            if (emitters != null) {
-                for (SseEmitter emitter : emitters) {
-                    try { emitter.send(SseEmitter.event().name("notification").id(id.toString()).data(response)); }
-                    catch (Exception ex) { remove(userId, emitter); }
+            boolean inAppEnabled = channelEnabled(userId, type, "in_app_enabled");
+            boolean emailEnabled = channelEnabled(userId, type, "email_enabled");
+            if (!inAppEnabled && !emailEnabled) return;
+
+            if (inAppEnabled) {
+                String json = mapper.writeValueAsString(data);
+                UUID id = UUID.randomUUID();
+                Instant created = Instant.now();
+                jdbc.update("""
+                    INSERT INTO platform.notifications (id,user_id,type,title,body,data,dedupe_key,created_at)
+                    VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?)
+                    """, id, userId, type, title, body, json, dedupeKey, created);
+                NotificationResponse response = new NotificationResponse(id, type, title, body, data, null, created);
+                Set<SseEmitter> emitters = streams.get(userId);
+                if (emitters != null) {
+                    for (SseEmitter emitter : emitters) {
+                        try { emitter.send(SseEmitter.event().name("notification").id(id.toString()).data(response)); }
+                        catch (Exception ex) { remove(userId, emitter); }
+                    }
+                }
+            }
+
+            if (emailEnabled) {
+                String recipient = jdbc.queryForObject("SELECT email::text FROM core.users WHERE id = ? AND deleted_at IS NULL",
+                        String.class, userId);
+                if (recipient != null && !recipient.isBlank()) {
+                    String payload = mapper.writeValueAsString(Map.of("title", title, "body", body));
+                    jdbc.update("""
+                        INSERT INTO platform.email_outbox(id,user_id,to_email,template,payload,status,attempts,next_attempt_at,created_at)
+                        VALUES (?, ?, ?, 'NOTIFICATION', ?::jsonb, 'PENDING', 0, now(), now())
+                        """, UUID.randomUUID(), userId, recipient, payload);
                 }
             }
         } catch (DuplicateKeyException ignored) {
@@ -61,6 +80,16 @@ public class NotificationService {
         } catch (Exception ex) {
             throw new IllegalStateException("Unable to create notification", ex);
         }
+    }
+
+    private boolean channelEnabled(UUID userId, String type, String column) {
+        if (!"in_app_enabled".equals(column) && !"email_enabled".equals(column)) {
+            throw new IllegalArgumentException("Unsupported notification channel.");
+        }
+        Boolean enabled = jdbc.queryForObject("""
+            SELECT COALESCE((SELECT %s FROM platform.notification_preferences WHERE user_id=? AND type=?), true)
+            """.formatted(column), Boolean.class, userId, type);
+        return Boolean.TRUE.equals(enabled);
     }
 
     public CursorResponse<NotificationResponse> find(UUID userId, boolean unread, String cursor, int requestedLimit) {
