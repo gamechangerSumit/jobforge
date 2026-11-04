@@ -36,8 +36,8 @@ public class NotificationEmailDispatcher {
             FROM platform.email_outbox
             WHERE status='PENDING' AND next_attempt_at <= now() AND attempts < 5
             ORDER BY next_attempt_at,created_at
-            FOR UPDATE SKIP LOCKED
             LIMIT 10
+            FOR UPDATE SKIP LOCKED
             """, (rs, row) -> new EmailRow(rs.getObject("id", java.util.UUID.class), rs.getString("to_email"),
                 rs.getString("template"), rs.getString("payload"), rs.getInt("attempts")));
         for (EmailRow row : rows) {
