@@ -8,7 +8,6 @@ import com.jobforge.backend.shared.security.AuthenticatedUser;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /** Authenticated notification inbox, preferences and live stream (API_CONTRACT §12.8). */
 @RestController
@@ -67,8 +65,4 @@ public class NotificationController {
         return service.updatePreferences(caller.id(), preferences);
     }
 
-    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter stream(@AuthenticationPrincipal AuthenticatedUser caller) {
-        return service.subscribe(caller.id());
-    }
 }
