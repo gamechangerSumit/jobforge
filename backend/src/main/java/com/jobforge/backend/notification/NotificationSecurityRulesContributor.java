@@ -8,24 +8,11 @@ import org.springframework.security.config.annotation.web.configurers.AuthorizeH
 import org.springframework.stereotype.Component;
 
 @Component
-public class NotificationSecurityRulesContributor
-        implements SecurityRulesContributor {
-
+public class NotificationSecurityRulesContributor implements SecurityRulesContributor {
     @Override
-    public void contribute(
-            AuthorizeHttpRequestsConfigurer<
-                    HttpSecurity
-            >.AuthorizationManagerRequestMatcherRegistry registry
-    ) {
-
-        registry.requestMatchers(
-                HttpMethod.GET,
-                ApiPaths.BASE + "/notifications/**"
-        ).authenticated();
-
-        registry.requestMatchers(
-                HttpMethod.POST,
-                ApiPaths.BASE + "/notifications/**"
-        ).authenticated();
+    public void contribute(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry registry) {
+        registry.requestMatchers(HttpMethod.GET, ApiPaths.BASE + "/notifications/**").authenticated();
+        registry.requestMatchers(HttpMethod.POST, ApiPaths.BASE + "/notifications/**").authenticated();
+        registry.requestMatchers(HttpMethod.PUT, ApiPaths.BASE + "/notifications/**").authenticated();
     }
 }
