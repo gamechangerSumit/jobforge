@@ -13,6 +13,8 @@ import java.util.UUID;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class NotificationService {
@@ -53,7 +55,12 @@ public class NotificationService {
                     VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?)
                     """, id, userId, type, title, body, json, dedupeKey, created);
                 NotificationResponse response = new NotificationResponse(id, type, title, body, data, null, created);
-                streamPublisher.publish(userId, response);
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        streamPublisher.publish(userId, response);
+                    }
+                });
             }
 
             if (emailEnabled) {
