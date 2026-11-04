@@ -9,14 +9,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Service
 public class NotificationService {
@@ -31,12 +27,14 @@ public class NotificationService {
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
     private final NotificationCursorCodec cursors;
-    private final Map<UUID, Set<SseEmitter>> streams = new ConcurrentHashMap<>();
+    private final NotificationStreamPublisher streamPublisher;
 
-    public NotificationService(JdbcTemplate jdbc, ObjectMapper mapper, NotificationCursorCodec cursors) {
+    public NotificationService(JdbcTemplate jdbc, ObjectMapper mapper, NotificationCursorCodec cursors,
+            NotificationStreamPublisher streamPublisher) {
         this.jdbc = jdbc;
         this.mapper = mapper;
         this.cursors = cursors;
+        this.streamPublisher = streamPublisher;
     }
 
     @org.springframework.transaction.annotation.Transactional
@@ -55,13 +53,7 @@ public class NotificationService {
                     VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?)
                     """, id, userId, type, title, body, json, dedupeKey, created);
                 NotificationResponse response = new NotificationResponse(id, type, title, body, data, null, created);
-                Set<SseEmitter> emitters = streams.get(userId);
-                if (emitters != null) {
-                    for (SseEmitter emitter : emitters) {
-                        try { emitter.send(SseEmitter.event().name("notification").id(id.toString()).data(response)); }
-                        catch (Exception ex) { remove(userId, emitter); }
-                    }
-                }
+                streamPublisher.publish(userId, response);
             }
 
             if (emailEnabled) {
@@ -172,30 +164,4 @@ public class NotificationService {
         return preferences(userId);
     }
 
-    public SseEmitter subscribe(UUID userId) {
-        SseEmitter emitter = new SseEmitter(0L);
-        streams.computeIfAbsent(userId, ignored -> ConcurrentHashMap.newKeySet()).add(emitter);
-        emitter.onCompletion(() -> remove(userId, emitter));
-        emitter.onTimeout(() -> remove(userId, emitter));
-        emitter.onError(error -> remove(userId, emitter));
-        try { emitter.send(SseEmitter.event().name("ping").data(Map.of("at", Instant.now().toString()))); }
-        catch (Exception ex) { remove(userId, emitter); }
-        return emitter;
-    }
-
-    @Scheduled(fixedRate = 25_000)
-    public void heartbeat() {
-        streams.forEach((userId, emitters) -> emitters.forEach(emitter -> {
-            try { emitter.send(SseEmitter.event().name("ping").data(Map.of("at", Instant.now().toString()))); }
-            catch (Exception ex) { remove(userId, emitter); }
-        }));
-    }
-
-    private void remove(UUID userId, SseEmitter emitter) {
-        Set<SseEmitter> emitters = streams.get(userId);
-        if (emitters != null) {
-            emitters.remove(emitter);
-            if (emitters.isEmpty()) streams.remove(userId, emitters);
-        }
-    }
 }
