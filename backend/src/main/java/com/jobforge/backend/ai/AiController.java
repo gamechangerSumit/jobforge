@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jobforge.backend.company.facade.CompanyAccessFacade;
 import com.jobforge.backend.profile.facade.ProfileFacade;
+import com.jobforge.backend.shared.api.CursorMeta;
+import com.jobforge.backend.shared.api.CursorResponse;
 import com.jobforge.backend.shared.error.ForbiddenException;
 import com.jobforge.backend.shared.error.ValidationFailedException;
 import com.jobforge.backend.shared.security.AuthenticatedUser;
@@ -56,8 +58,8 @@ public class AiController {
         }
         ObjectNode trusted = ((ObjectNode) request).deepCopy();
         trusted.put("companyId", membership.companyId().toString());
-        return ResponseEntity.status(HttpStatus.OK).body(gateway.post("/internal/v1/ai/job-drafts", trusted,
-                caller.id(), caller.role().name(), requestId, idempotencyKey));
+        return ResponseEntity.status(HttpStatus.OK).body(payload(gateway.post("/internal/v1/ai/job-drafts", trusted,
+                caller.id(), caller.role().name(), requestId, idempotencyKey)));
     }
 
     @PostMapping("/job-validations")
@@ -69,41 +71,56 @@ public class AiController {
             throw new ForbiddenException(com.jobforge.backend.shared.error.ErrorCode.RECRUITER_NOT_APPROVED,
                     "Your recruiter account must be approved before using AI validation.");
         }
-        return gateway.post("/internal/v1/ai/job-validations", request, caller.id(), caller.role().name(), requestId, idempotencyKey);
+        return payload(gateway.post("/internal/v1/ai/job-validations", request, caller.id(), caller.role().name(), requestId, idempotencyKey));
     }
 
     @GetMapping("/usage/me")
     public Map<?, ?> usage(@AuthenticationPrincipal AuthenticatedUser caller,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
-        return gateway.get("/internal/v1/ai/usage?userId=" + caller.id(), caller.id(), caller.role().name(), requestId);
+        return payload(gateway.get("/internal/v1/ai/usage?userId=" + caller.id(), caller.id(), caller.role().name(), requestId));
     }
 
     @GetMapping("/requests")
-    public Map<?, ?> history(@AuthenticationPrincipal AuthenticatedUser caller,
+    public CursorResponse<Map<String, Object>> history(@AuthenticationPrincipal AuthenticatedUser caller,
             @RequestParam(defaultValue = "20") int limit, @RequestParam(required = false) String cursor,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         if (limit < 1 || limit > 50) throw ValidationFailedException.of("limit", "MAX", "Limit must be between 1 and 50.");
         String path = "/internal/v1/ai/requests?limit=" + limit + (cursor == null || cursor.isBlank() ? "" : "&cursor=" + java.net.URLEncoder.encode(cursor, java.nio.charset.StandardCharsets.UTF_8));
-        return gateway.get(path, caller.id(), caller.role().name(), requestId);
+        Map<?, ?> response = gateway.get(path, caller.id(), caller.role().name(), requestId);
+        Object rawData = response.get("data");
+        Object rawMeta = response.get("meta");
+        Map<?, ?> meta = rawMeta instanceof Map<?, ?> value ? value : Map.of();
+        Object rawCursor = meta.get("cursor");
+        Map<?, ?> cursor = rawCursor instanceof Map<?, ?> value ? value : Map.of();
+        @SuppressWarnings("unchecked") java.util.List<Map<String, Object>> items = rawData instanceof java.util.List<?> list
+                ? (java.util.List<Map<String, Object>>) list : java.util.List.of();
+        String next = cursor.get("next") instanceof String value ? value : null;
+        boolean hasNext = Boolean.TRUE.equals(cursor.get("hasNext"));
+        int pageLimit = cursor.get("limit") instanceof Number value ? value.intValue() : limit;
+        return new CursorResponse<>(items, new CursorMeta(next, hasNext, pageLimit));
     }
 
     @GetMapping("/requests/{id}")
     public Map<?, ?> requestDetail(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
-        return gateway.get("/internal/v1/ai/requests/" + id, caller.id(), caller.role().name(), requestId);
+        return payload(gateway.get("/internal/v1/ai/requests/" + id, caller.id(), caller.role().name(), requestId));
     }
 
     @GetMapping("/admin/quota-policies")
     @PreAuthorize("hasRole('ADMIN')")
     public Map<?, ?> quotaPolicies(@AuthenticationPrincipal AuthenticatedUser caller,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
-        return gateway.get("/internal/v1/ai/admin/quota-policies", caller.id(), caller.role().name(), requestId);
+        return payload(gateway.get("/internal/v1/ai/admin/quota-policies", caller.id(), caller.role().name(), requestId));
     }
 
     @GetMapping("/admin/usage")
     @PreAuthorize("hasRole('ADMIN')")
     public Map<?, ?> adminUsage(@AuthenticationPrincipal AuthenticatedUser caller,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
-        return gateway.get("/internal/v1/ai/admin/usage", caller.id(), caller.role().name(), requestId);
+        return payload(gateway.get("/internal/v1/ai/admin/usage", caller.id(), caller.role().name(), requestId));
+    }
+    private static Map<?, ?> payload(Map<?, ?> envelope) {
+        Object data = envelope == null ? null : envelope.get("data");
+        return data instanceof Map<?, ?> value ? value : Map.of();
     }
 }
