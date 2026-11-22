@@ -51,4 +51,17 @@ class JobDraftV1ValidatorTest {
           """);
         assertThat(validator.validate(draft).valid()).isFalse();
     }
+    @Test void rejectsBiasedLanguage() throws Exception {
+        var draft=mapper.readTree("""
+          {"title":"Backend Engineer","summary":"Build reliable backend systems.",
+           "responsibilities":["Be a coding ninja","Review code","Improve reliability"],
+           "requirements":["Java experience","Spring experience","SQL fundamentals"],
+           "niceToHave":[],"benefits":[],"skills":[{"name":"java","required":true},{"name":"spring","required":true},{"name":"sql","required":true}],
+           "employmentType":"FULL_TIME","workMode":"HYBRID","experienceLevel":"MID","descriptionMarkdown":"Build software."}
+          """);
+        var result=validator.validate(draft);
+        assertThat(result.valid()).isFalse();
+        assertThat(result.validationResult().toString()).contains("BIASED_LANGUAGE");
+    }
+
 }
