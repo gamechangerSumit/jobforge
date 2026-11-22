@@ -109,6 +109,10 @@ public class AiQuotaStore {
         return jdbc.update("DELETE FROM ai.ai_quota_overrides WHERE user_id=? AND period=?",userId,period);
     }
 
+    public int deleteOverrides(UUID userId) {
+        return jdbc.update("DELETE FROM ai.ai_quota_overrides WHERE user_id=?",userId);
+    }
+
     public java.util.List<Map<String,Object>> adminUsage() {
         return jdbc.query("""
                 SELECT operation,count(*)::int AS request_count,
