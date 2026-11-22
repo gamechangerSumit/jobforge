@@ -89,7 +89,7 @@ public class LocalTemplateProvider implements AIProvider {
             if (skills.size() >= 3) break;
             if (!skills.contains(fallback)) skills.add(fallback);
         }
-        if (skills.size() > 20) skills = new ArrayList<>(skills.subList(0, 20));
+        if (skills.size() > 20) skills.subList(20, skills.size()).clear();
 
         StringBuilder description =
                 new StringBuilder();
