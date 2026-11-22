@@ -20,7 +20,7 @@ function linksFor(role?: string): NavLink[] {
   if (role === 'ADMIN') return [...common,
     { href: '/admin/approvals', label: 'Approvals' }, { href: '/admin/users', label: 'Users' },
     { href: '/admin/jobs', label: 'Moderation' }, { href: '/admin/reports', label: 'Reports' },
-    { href: '/admin/analytics', label: 'Analytics' }, { href: '/admin/audit', label: 'Audit' }];
+    { href: '/admin/analytics', label: 'Analytics' }, { href: '/admin/ai', label: 'AI quotas' }, { href: '/admin/audit', label: 'Audit' }];
   return common;
 }
 
