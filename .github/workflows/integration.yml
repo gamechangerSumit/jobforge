@@ -52,7 +52,14 @@ jobs:
           done
           echo "Frontend jobs page did not become ready within 120 seconds."
           exit 1
-      - name: Run browser end-to-end and accessibility smoke suite\n        working-directory: frontend\n        run: |\n          corepack enable\n          pnpm install --frozen-lockfile\n          pnpm exec playwright install --with-deps chromium\n          pnpm test:e2e\n      - name: Dump logs on failure
+      - name: Run browser end-to-end suite
+        working-directory: frontend
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:e2e
+      - name: Dump logs on failure
         if: failure()
         run: docker compose --profile app logs --no-color --tail 200
       - name: Tear down
