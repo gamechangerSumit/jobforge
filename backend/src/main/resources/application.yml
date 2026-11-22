@@ -82,7 +82,14 @@ jobforge:
     enabled: ${RATE_LIMIT_ENABLED:true}
     upload-per-minute: ${RATE_LIMIT_UPLOAD_PER_MINUTE:10}
   storage:
+    provider: ${STORAGE_PROVIDER:local}
     local-dir: ${STORAGE_LOCAL_PATH:./data/uploads}
+    s3:
+      endpoint: ${S3_ENDPOINT:}
+      bucket: ${S3_BUCKET:jobforge-uploads}
+      region: ${AWS_REGION:ap-south-1}
+      access-key: ${S3_ACCESS_KEY:}
+      secret-key: ${S3_SECRET_KEY:}
   ai:
     base-url: ${AI_SERVICE_URL:http://localhost:8090}
     internal-token: ${AI_INTERNAL_TOKEN:}
