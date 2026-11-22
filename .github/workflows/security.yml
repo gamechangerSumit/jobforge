@@ -19,9 +19,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          scan-type: fs
-          severity: HIGH,CRITICAL
-          exit-code: '1'
-          ignore-unfixed: true
+      # Run the pinned upstream container directly. This avoids the Trivy action's
+      # release-binary installer, which has intermittently failed before scanning.
+      - name: Scan filesystem with Trivy
+        run: |
+          docker run --rm \
+            -v "$PWD:/work" \
+            -w /work \
+            aquasec/trivy:0.70.0 \
+            fs --scanners vuln,misconfig,secret \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --skip-dirs .git .
