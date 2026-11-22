@@ -53,9 +53,9 @@ public class JobDraftV1Validator implements AiOutputValidator {
                 }
             }
         }
-        enumField(output,"employmentType",Set.of("FULL_TIME","PART_TIME","CONTRACT","INTERNSHIP","TEMPORARY"),issues);
+        enumField(output,"employmentType",Set.of("FULL_TIME","PART_TIME","CONTRACT","INTERNSHIP","FREELANCE"),issues);
         enumField(output,"workMode",Set.of("ONSITE","HYBRID","REMOTE"),issues);
-        enumField(output,"experienceLevel",Set.of("ENTRY","JUNIOR","MID","SENIOR","LEAD","EXECUTIVE"),issues);
+        enumField(output,"experienceLevel",Set.of("INTERN","ENTRY","MID","SENIOR","LEAD","EXECUTIVE"),issues);
         scan(output, issues);
         boolean valid = issues.stream().noneMatch(x -> "ERROR".equals(((java.util.Map<?,?>)x).get("severity")));
         int score = valid ? (issues.isEmpty() ? 90 : 85) : 0;
