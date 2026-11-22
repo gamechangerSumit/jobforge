@@ -23,6 +23,7 @@ public class AiErrorAdvice {
         String id=requestId(request);
         var builder=ResponseEntity.status(status).header("X-Request-Id",id);
         if(ex.retryAfterSeconds()!=null) builder.header(HttpHeaders.RETRY_AFTER,Long.toString(ex.retryAfterSeconds()));
+        if(ex.replayed()) builder.header("Idempotency-Replayed","true");
         return builder.body(envelope(ex.code().name(),ex.getMessage(),status,request,ex.details(),id));
     }
 
