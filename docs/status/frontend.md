@@ -96,3 +96,9 @@ Recruiter and seeker interview pages, schedule/reschedule/cancel/complete/respon
 - AI Job Studio now receives the standard backend response envelope and displays generation result, quality and quota information through the typed client.
 - Added recruiter navigation entry and admin AI quota backend endpoints are now available for a future admin UI.
 - Draft PR #10 opened against develop for CI/review. No frontend typecheck, lint, tests or production build has been run here.
+
+
+## Revision 11 — admin AI quota dashboard (static implementation, unverified)
+- Added `/admin/ai` with role/period quota policy editing, active toggles, per-minute request limits, save feedback and aggregate 30-day AI usage table.
+- Added typed quota policy/usage methods and admin navigation link. Backend routes enforce ADMIN at method and internal-service boundaries.
+- Not run: frontend typecheck/lint/tests/build; add component tests and verify admin payload shape in integration.
