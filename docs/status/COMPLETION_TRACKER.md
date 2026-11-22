@@ -1,92 +1,51 @@
 # JobForge completion tracker
 
-_Last updated: 2026-11-22. Working branch: `feature/jobforge-completion-v2`._
+_Last updated: 2026-11-22. Working branch: `feature/jobforge-completion-v2`. PR: #10._
 
-## Integration baseline
+## Implemented on this branch
 
-The working branch is based on `develop`, not `main`. The earlier `feature/jobforge-completion` branch was created from `main` and is stale; continue only on `feature/jobforge-completion-v2`.
+- Consolidated the existing platform slices: jobs, applications, interviews, reports/moderation, community, analytics, notifications and the AI service.
+- Backend AI gateway with internal service authentication, verified principal forwarding, recruiter approval/company checks, owner-scoped request history/detail, usage and admin quota controls.
+- AI draft-to-job handoff validates request owner, operation and success state; the recruiter reviews and saves a draft. AI copy is never auto-published.
+- Recruiter AI Job Studio, admin quota dashboard, responsive role-aware navigation, landing-page redesign, design tokens, metadata and footer.
+- Dedicated AI rate-limit bucket and private service wiring in Compose.
+- Object storage abstraction now has a local filesystem adapter and an S3-compatible adapter using AWS SDK v2. S3 supports MinIO through endpoint override and AWS S3 through regional endpoints. Bucket access remains server-side; the adapter does not publish object URLs.
+- Playwright browser suite covers the jobs page and mocked community, interview and report/moderation flows. The integration workflow now installs Chromium and runs `pnpm test:e2e`.
+- Demo seeding defaults off and personal-looking seed credentials were removed from `.env.example`.
 
-Merged into this branch:
-- PR #8: `feature/session-6-ai-integration` — AI service pipeline, local template provider, internal API, quota persistence, migrations, schema validation and tests. Merge commit: `57f4b8f9bd5cdd6e2d4a0864a99ecbc56d465dfb`.
-- PR #9: `feature/session-7-notifications` — notification SSE stream, preference handling, email outbox dispatcher, frontend notification updates and cursor test. Merge commit: `79532d4da67966c7b926f420508c3c587510c0fe`.
+## Verified baseline before the latest storage / Playwright commits
 
-Already present on `develop` at branch creation:
-- Interview module (backend + frontend).
-- Reports and moderation (backend + frontend).
-- Community (backend + frontend).
-- Recruiter/admin analytics (backend + frontend).
+For commit `728ee6467db4e7c1725ae40f9f1e1b0cf356cb71`, GitHub Actions reported success for:
+- Backend Maven clean verify.
+- AI service Maven verify.
+- Frontend install, lint, typecheck, tests and production build.
+- Gitleaks and Trivy filesystem scans.
+- Compose validation, ShellCheck, Hadolint and Docker image builds.
+- Full-stack Compose smoke tests: public job search/facets, protected-route authorization and frontend jobs page.
 
-All prior feature work is static/unverified. No Maven, pnpm, Docker, application server, or test suite has been run as part of this completion effort. Do not label any test as passed until it has actually run.
+The S3 adapter and Playwright workflow changes were committed after that verified baseline. They still require a fresh CI run; do not treat them as validated yet.
 
-## Remaining implementation
+## Remaining before production-ready
 
-### P0 — AI public gateway (backend)
-- Implement authenticated public `/api/v1/ai/**` endpoints.
-- Proxy to internal ai-service using `X-Internal-Token`, `X-User-Id`, `X-User-Role`, `X-Request-Id`, and `Idempotency-Key`; never forward the browser JWT.
-- Enforce recruiter approval, company membership/ownership, seeker ownership, admin-only quota controls and AI rate class.
-- Assemble domain context through module facades; do not query another module's tables directly.
-- Map ai-service errors to the existing API_CONTRACT error envelope.
-- Add the job-publish AI request ownership/type/status validation hook.
+1. **Personalized AI context:** assemble seeker profile, skills, preferences, application history and job/candidate context through module facades; add consent, minimization, freshness and authorization tests before exposing recommendations or career insights.
+2. **OpenAPI:** add the springdoc ADR/dependency, generate and commit `docs/openapi/openapi.v1.json`, generate frontend API types, and enforce a CI drift check. Do not hand-author a snapshot and call it generated.
+3. **Storage validation:** run backend Maven verification with the AWS SDK dependency; test S3 adapter against MinIO in integration CI; verify bucket provisioning, object lifecycle and upload/download authorization. The local adapter remains the default.
+4. **Browser quality:** run the new Playwright workflow, fix selectors/flows, and add axe-based accessibility checks for the main seeker, recruiter and admin journeys.
+5. **Production review:** verify secure cookies, restrictive CORS, proxy trust, Redis fail-open policy, upload malware-scanning hook, retention/account deletion policy, secret rotation and deployment rollback.
+6. **Release process:** update status docs after CI passes, convert PR #10 from draft only after review, then merge using the repository's required checks.
 
-### P1 — AI frontend
-- Recruiter AI Job Studio: prompt inputs, generation, editable draft, quality issues, quota visibility, then create job with `aiRequestId`.
-- Seeker recommendations and career insights pages.
-- AI request history/detail and usage display.
-- Admin quota policies/overrides and usage screens where the contract requires them.
-- MSW handlers and unit/component/e2e test sources.
+## Local commands
 
-### P2 — Storage
-- Implement MinIO/S3 adapter behind existing resume/avatar/logo storage ports.
-- Keep local filesystem adapter as zero-cost default/fallback.
-- Add configuration, compose profile wiring, upload/download authorization and adapter tests.
-- Do not log storage credentials or expose object-store URLs/keys.
+```bash
+cd backend && mvn -B -ntp clean verify
+cd ../ai-service && mvn -B -ntp verify
+cd ../frontend && pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e
+cd .. && docker compose config
+docker compose --profile app up -d --build --wait
+```
 
-### P3 — API specification and generated types
-- Add the documented ADR for springdoc.
-- Generate and commit `docs/openapi/openapi.v1.json`; never hand-edit the generated snapshot.
-- Wire `pnpm gen:api` and migrate hand-written API DTO types to generated types.
-- Add CI drift check for the snapshot.
-
-### P4 — Hardening and verification
-- Complete remaining backend authorization/rate-limit/cache/upload ITs.
-- Add/finish Playwright seeker, recruiter and admin critical flows and accessibility checks.
-- Add Playwright to the integration workflow; review Spotless/JaCoCo/OpenAPI drift checks.
-- Validate backend, frontend and ai-service in order; validate compose profiles and a fresh-database smoke flow.
-- Review cookie/CORS/proxy trust, Redis fail-open behavior, upload virus-scan hook, account deletion retention and secrets history.
-- Update `docs/status/backend.md`, `frontend.md`, `ai-infra.md`, and `HANDOFF.md` after implementation and validation.
+For MinIO, set `STORAGE_PROVIDER=s3`, use strong S3 credentials, start `docker compose --profile storage up -d minio` first, then start the app profile. For the containerized backend, set `S3_ENDPOINT=http://minio:9000`. The default provider is local disk.
 
 ## Definition of done
 
-A feature is complete only when its contract, backend, frontend, authorization, tests, events/notifications, documentation and configuration agree. A static source addition is not a verified feature. The final handoff must clearly separate implemented, statically inspected, and actually tested behavior.
-
-
-## Progress update — 2026-11-22
-- Added backend-only AI gateway routes for recruiter job drafting and job validation, user-owned request history/detail, usage, and admin quota-policy/usage reads.
-- Gateway uses the separate `AI_INTERNAL_TOKEN` and forwards only verified user ID/role/request ID; it never forwards the browser bearer token.
-- Recruiter job drafting checks recruiter approval and binds the request to the recruiter's own company membership.
-- AI routes are protected by the existing security contributor mechanism and classified under the dedicated 10/min AI rate-limit class.
-- Added backend AI service URL/token configuration and app-profile service wiring.
-- Frontend AI Job Studio and typed client added; generation preview includes quality issues, quota feedback, and copy-to-clipboard. AI drafts are not auto-published.
-- Frontend shell refreshed: responsive role-aware navigation, visual design tokens, landing page, metadata, and footer.
-- Removed personal-looking seed credentials from `.env.example`; demo seeding now defaults off.
-- **Not verified:** Maven, pnpm typecheck/lint/tests, Docker Compose, or Playwright have not been run in this environment. AI draft-to-job persistence is still blocked by the existing `JobService.create` guard rejecting `aiRequestId`; recommendations/career insight context assembly and S3-compatible storage remain open.
-
-
-## Follow-up — 2026-11-22
-- Added admin quota policy updates, per-user quota overrides and override deletion to the backend gateway; all routes require ADMIN both at the backend method boundary and in ai-service.
-- Corrected AI gateway response handling to unwrap internal envelopes into the backend's standard envelope and preserve cursor metadata for request history.
-- Added a unit test for the AI-specific rate-limit class.
-- Opened draft PR #10 against `develop` for CI/review: https://github.com/gamechangerSumit/jobforge/pull/10. GitHub reported `mergeable=false` at creation time; investigate before any merge. No workflow runs were visible when checked.
-
-
-## Admin AI UI follow-up — 2026-11-22
-- Added `/admin/ai` quota and usage dashboard with daily/monthly role budgets, rate limits, active toggles, save actions, and 30-day aggregate usage table.
-- Added typed admin quota policy/usage client and admin navigation entry.
-- Still static/unverified; include in frontend typecheck/build and test coverage before merge.
-
-
-## AI draft-to-job handoff — 2026-11-22
-- Closed the AI draft attribution gap: the job create API fetches the AI request through the private gateway, which asks ai-service for a caller-owned request; only a successful `JOB_GENERATION` request is accepted.
-- Job creation now persists `ai_generated=true` and the verified `ai_request_id` on the job row.
-- AI Job Studio now offers a direct handoff to `/recruiter/jobs/new?aiRequestId=...`; the editor loads the saved output, pre-fills description/requirements/benefits/skills and keeps the request ID hidden for attribution. The recruiter reviews and saves a draft; publishing remains separate.
-- Static only; validate backend and frontend workflows. Remaining major gaps: trusted personalized recommendation/career context, S3-compatible storage, OpenAPI generation, and Playwright/a11y coverage.
+A feature is complete only when contract, backend, frontend, authorization, tests, events/notifications, docs and runtime configuration agree. Separate implemented code from verified behavior in every handoff. Keep PR #10 as draft until the post-storage CI run and the remaining production-readiness work are complete.
