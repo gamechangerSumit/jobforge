@@ -75,6 +75,14 @@ public class AiRequestStore {
                 rs -> rs.next() ? Optional.of(map(rs)) : Optional.empty(), userId, requestId);
     }
 
+    public int expirePending(int ttlSeconds) {
+        return jdbc.update("""
+                UPDATE ai.ai_requests
+                   SET status='FAILED', error_code='AI_TIMEOUT', completed_at=now()
+                 WHERE status='PENDING' AND created_at < now() - (? * interval '1 second')
+                """,ttlSeconds);
+    }
+
     public RequestPage pageOwned(UUID userId, AiCursorCodec.Cursor cursor, int limit) {
         List<RequestRow> rows;
         if(cursor==null) {
