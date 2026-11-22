@@ -58,3 +58,15 @@ All prior feature work is static/unverified. No Maven, pnpm, Docker, application
 ## Definition of done
 
 A feature is complete only when its contract, backend, frontend, authorization, tests, events/notifications, documentation and configuration agree. A static source addition is not a verified feature. The final handoff must clearly separate implemented, statically inspected, and actually tested behavior.
+
+
+## Progress update — 2026-11-22
+- Added backend-only AI gateway routes for recruiter job drafting and job validation, user-owned request history/detail, usage, and admin quota-policy/usage reads.
+- Gateway uses the separate `AI_INTERNAL_TOKEN` and forwards only verified user ID/role/request ID; it never forwards the browser bearer token.
+- Recruiter job drafting checks recruiter approval and binds the request to the recruiter's own company membership.
+- AI routes are protected by the existing security contributor mechanism and classified under the dedicated 10/min AI rate-limit class.
+- Added backend AI service URL/token configuration and app-profile service wiring.
+- Frontend AI Job Studio and typed client added; generation preview includes quality issues, quota feedback, and copy-to-clipboard. AI drafts are not auto-published.
+- Frontend shell refreshed: responsive role-aware navigation, visual design tokens, landing page, metadata, and footer.
+- Removed personal-looking seed credentials from `.env.example`; demo seeding now defaults off.
+- **Not verified:** Maven, pnpm typecheck/lint/tests, Docker Compose, or Playwright have not been run in this environment. AI draft-to-job persistence is still blocked by the existing `JobService.create` guard rejecting `aiRequestId`; recommendations/career insight context assembly and S3-compatible storage remain open.
