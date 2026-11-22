@@ -14,8 +14,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class AiRequestStore {
     public record RequestRow(UUID id, UUID userId, String role, AiOperation operation,
-            AiRequestStatus status, String inputHash, JsonNode output, String provider,
-            String model, Integer creditsCharged, Instant createdAt) {}
+            AiRequestStatus status, String inputHash, JsonNode output, JsonNode validationResult,
+            String schemaVersion, Integer qualityScore, String provider, String model,
+            Integer creditsCharged, Instant createdAt) {}
+
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
 
@@ -26,8 +28,8 @@ public class AiRequestStore {
 
     public Optional<RequestRow> findByIdempotencyKey(UUID userId, UUID key) {
         return jdbc.query("""
-                SELECT id,user_id,user_role,operation,status,input_hash,output,provider,model,
-                       credits_charged,created_at
+                SELECT id,user_id,user_role,operation,status,input_hash,output,validation_result,
+                       output_schema_version,quality_score,provider,model,credits_charged,created_at
                   FROM ai.ai_requests
                  WHERE user_id=? AND idempotency_key=?
                 """, rs -> rs.next() ? Optional.of(map(rs)) : Optional.empty(), userId, key);
@@ -68,28 +70,36 @@ public class AiRequestStore {
 
     public Optional<RequestRow> findOwned(UUID userId, UUID requestId) {
         return jdbc.query("""
-                SELECT id,user_id,user_role,operation,status,input_hash,output,provider,model,
-                       credits_charged,created_at
+                SELECT id,user_id,user_role,operation,status,input_hash,output,validation_result,
+                       output_schema_version,quality_score,provider,model,credits_charged,created_at
                   FROM ai.ai_requests WHERE user_id=? AND id=?
                 """, rs -> rs.next() ? Optional.of(map(rs)) : Optional.empty(), userId, requestId);
     }
 
     private RequestRow map(java.sql.ResultSet rs) throws java.sql.SQLException {
-        String output = rs.getString("output");
-        JsonNode node = null;
-        if (output != null) {
-            try { node = mapper.readTree(output); }
-            catch (java.io.IOException e) { throw new java.sql.SQLException("Stored AI output is invalid", e); }
-        }
         return new RequestRow(rs.getObject("id", UUID.class), rs.getObject("user_id", UUID.class),
                 rs.getString("user_role"), AiOperation.valueOf(rs.getString("operation")),
                 AiRequestStatus.valueOf(rs.getString("status")), rs.getString("input_hash"),
-                node, rs.getString("provider"), rs.getString("model"),
+                parse(rs.getString("output")), parse(rs.getString("validation_result")),
+                rs.getString("output_schema_version"), (Integer) rs.getObject("quality_score"),
+                rs.getString("provider"), rs.getString("model"),
                 (Integer) rs.getObject("credits_charged"), Db.instant(rs, "created_at"));
     }
 
-    private JsonNode parse(String value) throws java.sql.SQLException {\n        if (value == null) return null;\n        try { return mapper.readTree(value); }\n        catch (java.io.IOException e) { throw new java.sql.SQLException("Stored AI JSON is invalid", e); }\n    }\n\n    private String json(JsonNode node) {
-        try { return node == null ? null : mapper.writeValueAsString(node); }
-        catch (java.io.IOException e) { throw new IllegalArgumentException("Cannot serialize AI JSON", e); }
+    private JsonNode parse(String value) throws java.sql.SQLException {
+        if (value == null) return null;
+        try {
+            return mapper.readTree(value);
+        } catch (java.io.IOException e) {
+            throw new java.sql.SQLException("Stored AI JSON is invalid", e);
+        }
+    }
+
+    private String json(JsonNode node) {
+        try {
+            return node == null ? null : mapper.writeValueAsString(node);
+        } catch (java.io.IOException e) {
+            throw new IllegalArgumentException("Cannot serialize AI JSON", e);
+        }
     }
 }
