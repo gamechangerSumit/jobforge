@@ -63,6 +63,14 @@ public class InternalAiController {
         return execute(AiOperation.CAREER_INSIGHT,body,userId,role,idempotencyKey,traceId);
     }
 
+    @PostMapping("/recommendations/candidates")
+    public ResponseEntity<Map<String,Object>> candidateRecommendations(@RequestBody JsonNode body,
+            @RequestHeader("X-User-Id") String userId,@RequestHeader("X-User-Role") String role,
+            @RequestHeader(value="Idempotency-Key",required=false) String idempotencyKey,
+            @RequestHeader(value="X-Request-Id",required=false) String traceId) {
+        return execute(AiOperation.CANDIDATE_RECOMMENDATION,body,userId,role,idempotencyKey,traceId);
+    }
+
     @GetMapping("/usage")
     public Map<String,Object> usage(@RequestParam UUID userId,@RequestHeader("X-User-Id") String headerUserId,
             @RequestHeader("X-User-Role") String role) {
