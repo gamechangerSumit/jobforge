@@ -112,6 +112,79 @@ public class InternalAiController {
         return Map.of("data",data);
     }
 
+    public record QuotaPolicyRequest(String role,String period,Integer creditLimit,Integer rateLimitPerMinute,Boolean active) {}
+    public record QuotaOverrideRequest(String period,Integer creditLimit,String expiresAt,String reason) {}
+
+    @GetMapping("/admin/quota-policies")
+    public Map<String,Object> quotaPolicies(@RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role) {
+        requireAdmin(userId,role);
+        return Map.of("data",quotas.listPolicies());
+    }
+
+    @PutMapping("/admin/quota-policies")
+    public Map<String,Object> updateQuotaPolicy(@RequestBody QuotaPolicyRequest body,
+            @RequestHeader("X-User-Id") String userId,@RequestHeader("X-User-Role") String role) {
+        CallerIdentity admin=requireAdmin(userId,role);
+        if(body.role()==null||!CallerIdentity.ROLES.contains(body.role()))
+            throw AiServiceException.validation("role","INVALID_ENUM","Unsupported user role.");
+        validatePeriod(body.period());
+        if(body.creditLimit()==null||body.creditLimit()<0||body.rateLimitPerMinute()==null||body.rateLimitPerMinute()<1||body.active()==null)
+            throw AiServiceException.validation("creditLimit","MIN","Quota limits and active flag are required.");
+        quotas.upsertPolicy(body.role(),body.period(),body.creditLimit(),body.rateLimitPerMinute(),body.active(),admin.userId());
+        return Map.of("data",quotas.listPolicies());
+    }
+
+    @PutMapping("/admin/quota-overrides/{targetUserId}")
+    public Map<String,Object> putQuotaOverride(@PathVariable UUID targetUserId,@RequestBody QuotaOverrideRequest body,
+            @RequestHeader("X-User-Id") String userId,@RequestHeader("X-User-Role") String role) {
+        CallerIdentity admin=requireAdmin(userId,role);
+        validatePeriod(body.period());
+        if(body.creditLimit()==null||body.creditLimit()<0||body.reason()==null||body.reason().isBlank()||body.reason().length()>500)
+            throw AiServiceException.validation("creditLimit","MIN","A non-negative limit and reason (1-500 chars) are required.");
+        java.time.OffsetDateTime expires=null;
+        if(body.expiresAt()!=null&&!body.expiresAt().isBlank()) {
+            try { expires=java.time.OffsetDateTime.parse(body.expiresAt()); }
+            catch(java.time.format.DateTimeParseException ex) {
+                throw AiServiceException.validation("expiresAt","PATTERN","Must be an ISO-8601 timestamp.");
+            }
+            if(!expires.isAfter(java.time.OffsetDateTime.now()))
+                throw AiServiceException.validation("expiresAt","FUTURE","Must be in the future.");
+        }
+        quotas.putOverride(targetUserId,body.period(),body.creditLimit(),expires,body.reason(),admin.userId());
+        return Map.of("data",Map.of("userId",targetUserId,"period",body.period(),"creditLimit",body.creditLimit(),
+                "expiresAt",body.expiresAt()==null?"":body.expiresAt()));
+    }
+
+    @DeleteMapping("/admin/quota-overrides/{targetUserId}")
+    public ResponseEntity<Void> deleteQuotaOverride(@PathVariable UUID targetUserId,
+            @RequestParam String period,@RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role) {
+        requireAdmin(userId,role);
+        validatePeriod(period);
+        quotas.deleteOverride(targetUserId,period);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/admin/usage")
+    public Map<String,Object> adminUsage(@RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role) {
+        requireAdmin(userId,role);
+        return Map.of("data",quotas.adminUsage());
+    }
+
+    private CallerIdentity requireAdmin(String userId,String role) {
+        CallerIdentity caller=CallerResolver.resolve(userId,role);
+        if(!"ADMIN".equals(caller.role()))
+            throw new AiServiceException(com.jobforge.aiservice.error.AiErrorCode.ACCESS_DENIED,"Administrator role is required.");
+        return caller;
+    }
+
+    private void validatePeriod(String period) {
+        if(!"DAILY".equals(period)&&!"MONTHLY".equals(period))
+            throw AiServiceException.validation("period","INVALID_ENUM","Period must be DAILY or MONTHLY.");
+    }
+
     private Map<String,Object> summary(AiRequestStore.RequestRow row) {
         Map<String,Object> data=new LinkedHashMap<>();
         data.put("id",row.id()); data.put("operation",row.operation().name());
