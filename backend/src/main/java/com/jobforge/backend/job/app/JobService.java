@@ -117,14 +117,11 @@ public class JobService {
         UUID companyId = companies.membershipOf(caller.id())
                 .orElseThrow(() -> new ForbiddenException("You must belong to a company to post jobs."))
                 .companyId();
-        if (draft.aiRequestId() != null) {
-            throw new BusinessRuleException("AI-generated drafts are not available yet.");
-        }
         Instant now = clock.instant();
         JobContent content = buildContent(draft, resolveSkills(draft.skills()));
         validateSalary(content.salary());
         Job job = new Job(UUID.randomUUID(), companyId, caller.id(), Slugs.forTitle(content.title()), content,
-                JobStatus.DRAFT, null, null, false, null, null, null, null, 0, now, now);
+                JobStatus.DRAFT, null, null, draft.aiRequestId() != null, draft.aiRequestId(), null, null, null, 0, now, now);
         jobs.insert(job, now);
         audit.record(new AuditEntry(AuditAction.JOB_CREATED, "Job", job.id(), caller.id(), caller.role(),
                 AuditOutcome.SUCCESS, null, Map.of("status", "DRAFT", "companyId", companyId.toString()), null));
