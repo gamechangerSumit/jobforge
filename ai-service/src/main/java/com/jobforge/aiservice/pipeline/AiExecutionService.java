@@ -105,6 +105,8 @@ public class AiExecutionService {
         try {
             AIProvider.ProviderResult generated = provider.generate(new AIProvider.ProviderRequest(
                     operation.name(), providerInput.toString(), traceId));
+            int inputTokens = generated.inputTokens();
+            int outputTokens = generated.outputTokens();
             JsonNode output = mapper.readTree(generated.output());
             AiOutputValidator.Outcome validation = null;
             JsonNode quality = mapper.createObjectNode();
@@ -114,6 +116,17 @@ public class AiExecutionService {
                 AiOutputValidator validator = validators.find(operation)
                         .orElseThrow(AiServiceException::outputInvalid);
                 validation = validator.validate(output);
+                if (!validation.valid()) {
+                    // One constrained repair attempt. Provider receives only validation issues, not system prompts.
+                    var repairInput = providerInput.deepCopy();
+                    repairInput.set("repairIssues", validation.validationResult().path("issues"));
+                    generated = provider.generate(new AIProvider.ProviderRequest(
+                            operation.name(), repairInput.toString(), traceId));
+                    inputTokens += generated.inputTokens();
+                    outputTokens += generated.outputTokens();
+                    output = mapper.readTree(generated.output());
+                    validation = validator.validate(output);
+                }
                 if (!validation.valid()) {
                     throw AiServiceException.outputInvalid();
                 }
@@ -125,9 +138,11 @@ public class AiExecutionService {
             final JsonNode storedValidation = validation == null ? mapper.createObjectNode() : validation.validationResult();
             final String version = schemaVersion;
             final Integer score = validation == null ? null : validation.qualityScore();
+            final int storedInputTokens = inputTokens;
+            final int storedOutputTokens = outputTokens;
             transactions.executeWithoutResult(status -> {
                 requests.markSucceeded(started.requestId(), storedOutput, version, storedValidation, score,
-                        generated.inputTokens(), generated.outputTokens(), operation.credits());
+                        storedInputTokens, storedOutputTokens, operation.credits());
                 quotas.commit(started.requestId());
             });
 
