@@ -46,6 +46,9 @@ public class LocalTemplateProvider implements AIProvider {
                 case "JOB_RECOMMENDATION" ->
                         recommendJobs(input);
 
+                case "CANDIDATE_RECOMMENDATION" ->
+                        recommendCandidates(input);
+
                 case "CAREER_INSIGHT" ->
                         careerInsights(input);
 
@@ -76,9 +79,20 @@ public class LocalTemplateProvider implements AIProvider {
                 new ArrayList<>();
 
         input.path("skills")
-                .forEach(node ->
-                        skills.add(node.asText())
-                );
+                .forEach(node -> {
+                    if (node.isTextual() && !node.asText().isBlank() && !skills.contains(node.asText())) {
+                        skills.add(node.asText().trim());
+                    }
+                });
+
+        // API_CONTRACT §14.1 requires at least three draft skills even when the recruiter
+        // supplies only one or two seed skills. Clearly generic additions remain editable.
+        List<String> defaults = List.of("Communication", "Problem solving", "Team collaboration");
+        for (String fallback : defaults) {
+            if (skills.size() >= 3) break;
+            if (!skills.contains(fallback)) skills.add(fallback);
+        }
+        if (skills.size() > 20) skills.subList(20, skills.size()).clear();
 
         StringBuilder description =
                 new StringBuilder();
@@ -272,6 +286,14 @@ public class LocalTemplateProvider implements AIProvider {
                                 List.of()
                         )
                 ),
+                0,
+                0
+        );
+    }
+
+    private ProviderResult recommendCandidates(JsonNode input) throws Exception {
+        return new ProviderResult(
+                objectMapper.writeValueAsString(java.util.Map.of("candidates", List.of())),
                 0,
                 0
         );
