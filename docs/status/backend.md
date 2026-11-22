@@ -124,3 +124,10 @@ Shared files touched (interview changes preserved; additions only): `AuditAction
 - Fix pass (2026-10-11): UserDeleted event + community purge consumer, exact `comment_count` recount with reply cascade, SpamGuard (links/duplicates/volume), actor names in community notifications (details: API_CONTRACT 12.9.2). The user module now injects `EventPublisher` into `UserAccountService`.
 - Open items: trending cursor uses a live score (a post can shift between pages); notification text is plain English only (no i18n); posts/comments of deleted accounts stay stored (invisible).
 - Run before calling it verified: backend `mvn -q verify` (ArchUnit + new ITs, Docker), frontend `pnpm typecheck && pnpm lint && pnpm test`.
+
+
+## Revision 9 — AI gateway (static implementation, unverified)
+- Added `ai/AiGatewayService`, `ai/AiController`, and `AiSecurityRulesContributor` for recruiter job drafts/validation, user-owned AI history/detail, usage, and admin quota-policy/usage reads.
+- Backend-to-AI calls use `X-Internal-Token` plus server-derived user ID/role; browser JWT is not propagated. Recruiter generation requires approved recruiter profile and company membership; company ID is overwritten from trusted membership.
+- Added `jobforge.ai.base-url` / `jobforge.ai.internal-token` configuration, Docker app-profile service URL wiring, and AI-specific 10/min request classification.
+- Remaining: AI draft request ID verification on job creation, personalized recommendation/career context assembly, admin quota writes/overrides, upstream error detail mapping, and tests. Static only; run `mvn -B verify` before merge.
