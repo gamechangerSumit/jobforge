@@ -91,12 +91,12 @@ public class AiController {
         Object rawMeta = response.get("meta");
         Map<?, ?> meta = rawMeta instanceof Map<?, ?> value ? value : Map.of();
         Object rawCursor = meta.get("cursor");
-        Map<?, ?> cursor = rawCursor instanceof Map<?, ?> value ? value : Map.of();
+        Map<?, ?> cursorMetaMap = rawCursor instanceof Map<?, ?> value ? value : Map.of();
         @SuppressWarnings("unchecked") java.util.List<Map<String, Object>> items = rawData instanceof java.util.List<?> list
                 ? (java.util.List<Map<String, Object>>) list : java.util.List.of();
-        String next = cursor.get("next") instanceof String value ? value : null;
-        boolean hasNext = Boolean.TRUE.equals(cursor.get("hasNext"));
-        int pageLimit = cursor.get("limit") instanceof Number value ? value.intValue() : limit;
+        String next = cursorMetaMap.get("next") instanceof String value ? value : null;
+        boolean hasNext = Boolean.TRUE.equals(cursorMetaMap.get("hasNext"));
+        int pageLimit = cursorMetaMap.get("limit") instanceof Number value ? value.intValue() : limit;
         return new CursorResponse<>(items, new CursorMeta(next, hasNext, pageLimit));
     }
 
