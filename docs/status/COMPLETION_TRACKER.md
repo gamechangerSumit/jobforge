@@ -77,3 +77,9 @@ A feature is complete only when its contract, backend, frontend, authorization, 
 - Corrected AI gateway response handling to unwrap internal envelopes into the backend's standard envelope and preserve cursor metadata for request history.
 - Added a unit test for the AI-specific rate-limit class.
 - Opened draft PR #10 against `develop` for CI/review: https://github.com/gamechangerSumit/jobforge/pull/10. GitHub reported `mergeable=false` at creation time; investigate before any merge. No workflow runs were visible when checked.
+
+
+## Admin AI UI follow-up — 2026-11-22
+- Added `/admin/ai` quota and usage dashboard with daily/monthly role budgets, rate limits, active toggles, save actions, and 30-day aggregate usage table.
+- Added typed admin quota policy/usage client and admin navigation entry.
+- Still static/unverified; include in frontend typecheck/build and test coverage before merge.
