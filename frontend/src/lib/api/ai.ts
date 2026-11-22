@@ -46,6 +46,8 @@ export interface AiUsage {
 export const generateJobDraft = (input: AiDraftInput, idempotencyKey: string) =>
   api.post<AiDraftResult>('/ai/job-drafts', input, { 'Idempotency-Key': idempotencyKey });
 export const getAiUsage = () => api.get<AiUsage>('/ai/usage/me');
+export interface AiRequestDetail { id: string; operation: string; status: string; output: AiDraft; qualityScore: number | null; }
+export const getAiRequestDetail = (id: string) => api.get<AiRequestDetail>(`/ai/requests/${id}`);
 
 export interface AiQuotaPolicy {
   role: 'JOB_SEEKER' | 'RECRUITER' | 'ADMIN';
