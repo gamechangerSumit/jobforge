@@ -66,6 +66,42 @@ public class AiGatewayService {
         }
     }
 
+    public Map<?, ?> put(String path, JsonNode body, UUID userId, String role, String requestId) {
+        if (internalToken == null || internalToken.isBlank()) {
+            throw new ApiException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "AI service is not configured.");
+        }
+        try {
+            return client.put().uri(path)
+                    .header("X-Internal-Token", internalToken)
+                    .header("X-User-Id", userId.toString())
+                    .header("X-User-Role", role)
+                    .header("X-Request-Id", requestId == null ? UUID.randomUUID().toString() : requestId)
+                    .body(body).retrieve().body(Map.class);
+        } catch (RestClientResponseException ex) {
+            throw translate(ex);
+        } catch (ResourceAccessException ex) {
+            throw new ApiException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "AI service is temporarily unavailable.");
+        }
+    }
+
+    public void delete(String path, UUID userId, String role, String requestId) {
+        if (internalToken == null || internalToken.isBlank()) {
+            throw new ApiException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "AI service is not configured.");
+        }
+        try {
+            client.delete().uri(path)
+                    .header("X-Internal-Token", internalToken)
+                    .header("X-User-Id", userId.toString())
+                    .header("X-User-Role", role)
+                    .header("X-Request-Id", requestId == null ? UUID.randomUUID().toString() : requestId)
+                    .retrieve().toBodilessEntity();
+        } catch (RestClientResponseException ex) {
+            throw translate(ex);
+        } catch (ResourceAccessException ex) {
+            throw new ApiException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "AI service is temporarily unavailable.");
+        }
+    }
+
     private ApiException translate(RestClientResponseException ex) {
         String code = "AI_PROVIDER_UNAVAILABLE";
         String message = "AI service could not complete the request.";
