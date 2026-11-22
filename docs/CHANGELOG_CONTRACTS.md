@@ -24,3 +24,4 @@ Format: `YYYY-MM-DD | doc §section | summary | PR #` (PR numbers filled when th
 2026-10-10 | ARCHITECTURE §15 | WRITE_COMMUNITY rate class applied to non-GET /community/** and /users/{id}/follow (30/min/user) | TBD
 2026-10-11 | API_CONTRACT §12.9.2 | Fix pass: exact comment_count, replies hidden with their parent, anti-spam limits (links, duplicates, volume, 429), UserDeleted purge of community interactions, notification text names the actor | TBD
 2026-10-11 | ARCHITECTURE §14 | New event UserDeleted {userId} on jobforge.users.v1 (published by DELETE /users/me, consumed by the community module) | TBD
+2026-11-22 | API_CONTRACT §14.6 | Daily + monthly AI quotas; binding-period semantics and 30x monthly defaults | PR #7

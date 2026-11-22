@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jobforge.local/schemas/job-draft.v1.schema.json",
+  "title": "JobForge AI Job Draft v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "summary",
+    "responsibilities",
+    "requirements",
+    "niceToHave",
+    "benefits",
+    "skills",
+    "employmentType",
+    "workMode",
+    "experienceLevel",
+    "descriptionMarkdown"
+  ],
+  "properties": {
+    "title": { "type": "string", "minLength": 3, "maxLength": 120 },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "responsibilities": {
+      "type": "array", "minItems": 3, "maxItems": 12,
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "requirements": {
+      "type": "array", "minItems": 3, "maxItems": 12,
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "niceToHave": {
+      "type": "array", "maxItems": 8,
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "benefits": {
+      "type": "array", "maxItems": 10,
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "skills": {
+      "type": "array", "minItems": 3, "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "required"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 50 },
+          "required": { "type": "boolean" }
+        }
+      }
+    },
+    "employmentType": {
+      "type": "string",
+      "enum": ["FULL_TIME", "PART_TIME", "CONTRACT", "INTERNSHIP", "FREELANCE"]
+    },
+    "workMode": { "type": "string", "enum": ["ONSITE", "HYBRID", "REMOTE"] },
+    "experienceLevel": {
+      "type": "string",
+      "enum": ["INTERN", "ENTRY", "MID", "SENIOR", "LEAD", "EXECUTIVE"]
+    },
+    "descriptionMarkdown": { "type": "string", "minLength": 1, "maxLength": 10000 }
+  }
+}

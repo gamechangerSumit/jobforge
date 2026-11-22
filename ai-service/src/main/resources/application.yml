@@ -1,17 +1,59 @@
 spring:
   application:
     name: jobforge-ai-service
+  datasource:
+    url: ${AI_DB_URL:jdbc:postgresql://localhost:5432/jobforge}
+    username: ${AI_DB_USER:jobforge_ai}
+    password: ${AI_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 5000
+  flyway:
+    # AI migrations run in the dedicated ai-migrate container, never with owner credentials in runtime.
+    enabled: ${AI_FLYWAY_ENABLED:false}
+    schemas: ai
+    default-schema: ai
+    create-schemas: false
+    table: flyway_schema_history
+    locations: classpath:db/migration
+    clean-disabled: true
+    validate-on-migrate: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+      connect-timeout: 2s
+  jackson:
+    time-zone: UTC
+    serialization:
+      write-dates-as-timestamps: false
 
 server:
   port: ${AI_SERVICE_PORT:8090}
   shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
 
 jobforge:
   ai:
-    # Default provider is the zero-cost LocalTemplateProvider (CLAUDE.md hard rule 4).
     provider: ${AI_PROVIDER:local}
-    # No default on purpose: the service refuses to start without a shared secret.
     internal-token: ${AI_INTERNAL_TOKEN}
+    env: ${JOBFORGE_ENV:local}
+    provider-timeout-seconds: 20
+    max-input-bytes: 1048576
+    retention:
+      input-days: 90
+      batch-size: 1000
+      cron: "0 30 3 * * *"
+    quota:
+      enabled: ${AI_QUOTA_ENABLED:true}
+      redis-enabled: true
+      reservation-ttl-seconds: 120
+      sweep-interval-ms: 60000
 
 management:
   endpoints:
@@ -21,3 +63,6 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    redis:
+      enabled: false

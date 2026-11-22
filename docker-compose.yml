@@ -203,6 +203,22 @@ services:
       - "8080:8080"
     networks: [jobforge-net]
 
+  ai-migrate:
+    profiles: ["app"]
+    image: flyway/flyway:11-alpine
+    restart: "no"
+    command: ["-connectRetries=60", "-schemas=ai", "-defaultSchema=ai", "-createSchemas=false", "-locations=filesystem:/flyway/sql", "migrate"]
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-jobforge}
+      FLYWAY_USER: jobforge_owner
+      FLYWAY_PASSWORD: ${DB_MIGRATION_PASSWORD:?DB_MIGRATION_PASSWORD missing}
+    volumes:
+      - ./ai-service/src/main/resources/db/migration:/flyway/sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [jobforge-net]
+
   ai-service:
     profiles: ["app"]
     build: ./ai-service
@@ -210,8 +226,22 @@ services:
     environment:
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?set AI_INTERNAL_TOKEN in .env}
       AI_PROVIDER: ${AI_PROVIDER:-local}
+      AI_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-jobforge}
+      AI_DB_USER: jobforge_ai
+      AI_DB_PASSWORD: ${AI_DB_PASSWORD:?AI_DB_PASSWORD missing}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      AI_FLYWAY_ENABLED: "false"
     ports:
       - "8090:8090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ai-migrate:
+        condition: service_completed_successfully
     networks: [jobforge-net]
 
   frontend:
