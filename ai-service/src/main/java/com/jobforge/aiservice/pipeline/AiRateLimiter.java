@@ -5,7 +5,6 @@ import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
 /** Per-user rolling minute guard; Redis is preferred and a bounded in-process fallback keeps the service available. */
@@ -22,10 +21,13 @@ public class AiRateLimiter {
         String redisKey="jobforge:ai:rate:"+userId+":"+minute;
         try {
             Long count=redis.opsForValue().increment(redisKey);
-            if(count!=null&&count==1L) redis.expire(redisKey,Duration.ofSeconds(65));
-            if(count!=null&&count>limit) throw AiServiceException.rateLimited(60-(System.currentTimeMillis()/1000L)%60);
-            return;
-        } catch (DataAccessException ex) {
+            if(count!=null) {
+                if(count==1L) redis.expire(redisKey,Duration.ofSeconds(65));
+                if(count>limit) throw AiServiceException.rateLimited(60-(System.currentTimeMillis()/1000L)%60);
+                return;
+            }
+        } catch (RuntimeException ex) {
+            if(ex instanceof AiServiceException rateLimited) throw rateLimited;
             // Fall through to process-local guard. PostgreSQL quota ledger remains authoritative for credits.
         }
         LocalBucket bucket=local.compute(userId,(key,current) ->
