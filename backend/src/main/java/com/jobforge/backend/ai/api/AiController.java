@@ -1,6 +1,6 @@
 package com.jobforge.backend.ai.api;
 
-import com.jobforge.backend.ai.AiGatewayService;
+import com.jobforge.backend.ai.app.AiGatewayService;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
