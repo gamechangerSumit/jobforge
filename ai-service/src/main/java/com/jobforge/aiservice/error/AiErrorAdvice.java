@@ -2,6 +2,7 @@ package com.jobforge.aiservice.error;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -19,10 +20,9 @@ public class AiErrorAdvice {
     @ExceptionHandler(AiServiceException.class)
     ResponseEntity<Map<String,Object>> handleAi(AiServiceException ex,HttpServletRequest request) {
         HttpStatus status=ex.code().status();
-        HttpHeaders headers=new HttpHeaders();
-        if(ex.retryAfterSeconds()!=null) headers.set(HttpHeaders.RETRY_AFTER,Long.toString(ex.retryAfterSeconds()));
-        return ResponseEntity.status(status).headers(headers).body(envelope(ex.code().name(),ex.getMessage(),
-                status,request,ex.details()));
+        var builder=ResponseEntity.status(status).header("X-Request-Id",requestId(request));
+        if(ex.retryAfterSeconds()!=null) builder.header(HttpHeaders.RETRY_AFTER,Long.toString(ex.retryAfterSeconds()));
+        return builder.body(envelope(ex.code().name(),ex.getMessage(),status,request,ex.details()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -32,37 +32,41 @@ public class AiErrorAdvice {
                         error.getCode()==null?"VALIDATION_FAILED":error.getCode().toUpperCase(),
                         "The supplied value is invalid."))
                 .toList();
-        return ResponseEntity.badRequest().body(envelope("VALIDATION_FAILED",
-                "One or more fields are invalid.",HttpStatus.BAD_REQUEST,request,details));
+        return response(HttpStatus.BAD_REQUEST,"VALIDATION_FAILED","One or more fields are invalid.",request,details);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<Map<String,Object>> handleMalformed(HttpMessageNotReadableException ex,HttpServletRequest request) {
-        return ResponseEntity.badRequest().body(envelope("MALFORMED_REQUEST","The request body is invalid.",
-                HttpStatus.BAD_REQUEST,request,List.of()));
+        return response(HttpStatus.BAD_REQUEST,"MALFORMED_REQUEST","The request body is invalid.",request,List.of());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<Map<String,Object>> handleIllegalArgument(IllegalArgumentException ex,HttpServletRequest request) {
-        return ResponseEntity.badRequest().body(envelope("VALIDATION_FAILED","One or more fields are invalid.",
-                HttpStatus.BAD_REQUEST,request,List.of()));
+        return response(HttpStatus.BAD_REQUEST,"VALIDATION_FAILED","One or more fields are invalid.",request,List.of());
     }
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<Map<String,Object>> handleUnexpected(Exception ex,HttpServletRequest request) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(envelope("INTERNAL_ERROR",
-                "An unexpected error occurred. Use the requestId when contacting support.",
-                HttpStatus.INTERNAL_SERVER_ERROR,request,List.of()));
+        return response(HttpStatus.INTERNAL_SERVER_ERROR,"INTERNAL_ERROR",
+                "An unexpected error occurred. Use the requestId when contacting support.",request,List.of());
+    }
+
+    private ResponseEntity<Map<String,Object>> response(HttpStatus status,String code,String message,
+            HttpServletRequest request,List<AiServiceException.Detail> details) {
+        return ResponseEntity.status(status).header("X-Request-Id",requestId(request))
+                .body(envelope(code,message,status,request,details));
+    }
+
+    private String requestId(HttpServletRequest request) {
+        try { return UUID.fromString(request.getHeader("X-Request-Id")==null?"":request.getHeader("X-Request-Id")).toString(); }
+        catch(IllegalArgumentException ex) { return UUID.randomUUID().toString(); }
     }
 
     private Map<String,Object> envelope(String code,String message,HttpStatus status,HttpServletRequest request,
             List<AiServiceException.Detail> details) {
-        String requestId=request.getHeader("X-Request-Id");
-        try { requestId=UUID.fromString(requestId==null?"":requestId).toString(); }
-        catch (IllegalArgumentException ex) { requestId=UUID.randomUUID().toString(); }
-        Map<String,Object> error=new java.util.LinkedHashMap<>();
+        Map<String,Object> error=new LinkedHashMap<>();
         error.put("code",code); error.put("message",message); error.put("status",status.value());
-        error.put("requestId",requestId); error.put("timestamp",Instant.now().toString());
+        error.put("requestId",requestId(request)); error.put("timestamp",Instant.now().toString());
         error.put("path",request.getRequestURI());
         if(details!=null&&!details.isEmpty()) error.put("details",details);
         return Map.of("error",error);
