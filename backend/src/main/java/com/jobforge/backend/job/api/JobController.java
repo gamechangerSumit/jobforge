@@ -2,6 +2,9 @@ package com.jobforge.backend.job.api;
 
 import com.jobforge.backend.job.app.JobDetailView;
 import com.jobforge.backend.job.app.JobService;
+import com.jobforge.backend.ai.AiGatewayService;
+import com.jobforge.backend.shared.error.BusinessRuleException;
+import java.util.Map;
 import com.jobforge.backend.job.facade.JobFacade.Viewer;
 import com.jobforge.backend.shared.config.ApiPaths;
 import com.jobforge.backend.shared.security.AuthenticatedUser;
@@ -28,9 +31,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class JobController {
 
     private final JobService jobs;
+    private final AiGatewayService aiGateway;
 
-    public JobController(JobService jobs) {
+    public JobController(JobService jobs, AiGatewayService aiGateway) {
         this.jobs = jobs;
+        this.aiGateway = aiGateway;
     }
 
     /** Public for PUBLISHED jobs; members/admin may see other statuses. Bearer token is optional. */
@@ -43,7 +48,18 @@ public class JobController {
     @PostMapping
     @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<JobDetailView> create(@AuthenticationPrincipal AuthenticatedUser caller,
-            @Valid @RequestBody JobRequests.Create request) {
+            @Valid @RequestBody JobRequests.Create request,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        if (request.aiRequestId() != null) {
+            Map<?, ?> envelope = aiGateway.get("/internal/v1/ai/requests/" + request.aiRequestId(),
+                    caller.id(), caller.role().name(), requestId);
+            Object rawData = envelope.get("data");
+            if (!(rawData instanceof Map<?, ?> data)
+                    || !"JOB_GENERATION".equals(data.get("operation"))
+                    || !"SUCCEEDED".equals(data.get("status"))) {
+                throw new BusinessRuleException("Only a successfully generated job draft owned by your account can be used to create a job.");
+            }
+        }
         JobDetailView created = jobs.create(caller, request.toDraft());
         return ResponseEntity.created(URI.create(ApiPaths.BASE + "/jobs/" + created.id()))
                 .eTag("\"" + created.version() + "\"").body(created);
