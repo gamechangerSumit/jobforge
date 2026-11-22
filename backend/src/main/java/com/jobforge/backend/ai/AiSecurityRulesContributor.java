@@ -14,5 +14,6 @@ public class AiSecurityRulesContributor implements SecurityRulesContributor {
         registry.requestMatchers(HttpMethod.GET, ApiPaths.BASE + "/ai/**").authenticated();
         registry.requestMatchers(HttpMethod.POST, ApiPaths.BASE + "/ai/**").authenticated();
         registry.requestMatchers(HttpMethod.PUT, ApiPaths.BASE + "/ai/**").authenticated();
+        registry.requestMatchers(HttpMethod.DELETE, ApiPaths.BASE + "/ai/**").authenticated();
     }
 }
