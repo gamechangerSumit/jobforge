@@ -88,7 +88,7 @@ public class AiRequestStore {
                 (Integer) rs.getObject("credits_charged"), Db.instant(rs, "created_at"));
     }
 
-    private String json(JsonNode node) {
+    private JsonNode parse(String value) throws java.sql.SQLException {\n        if (value == null) return null;\n        try { return mapper.readTree(value); }\n        catch (java.io.IOException e) { throw new java.sql.SQLException("Stored AI JSON is invalid", e); }\n    }\n\n    private String json(JsonNode node) {
         try { return node == null ? null : mapper.writeValueAsString(node); }
         catch (java.io.IOException e) { throw new IllegalArgumentException("Cannot serialize AI JSON", e); }
     }
