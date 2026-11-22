@@ -125,7 +125,10 @@ public class InternalAiController {
             String role,String key,String traceId) {
         CallerIdentity caller=CallerResolver.resolve(userId,role);
         UUID idempotency=CallerResolver.optionalUuid("Idempotency-Key",key);
-        var result=execution.execute(caller,operation,body,idempotency,traceId);
+        String requestId;
+        try { requestId=UUID.fromString(traceId==null?"":traceId).toString(); }
+        catch(IllegalArgumentException ex) { requestId=UUID.randomUUID().toString(); }
+        var result=execution.execute(caller,operation,body,idempotency,requestId);
         Map<String,Object> data=new LinkedHashMap<>();
         data.put("requestId",result.requestId());
         data.put("operation",operation.name());
@@ -141,9 +144,6 @@ public class InternalAiController {
         } else {
             data.put("result",result.output());
         }
-        String requestId;
-        try { requestId=UUID.fromString(traceId==null?"":traceId).toString(); }
-        catch(IllegalArgumentException ex) { requestId=UUID.randomUUID().toString(); }
         return ResponseEntity.status(HttpStatus.OK)
                 .header("Idempotency-Replayed",Boolean.toString(result.replayed()))
                 .header("X-Request-Id",requestId)
