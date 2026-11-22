@@ -10,7 +10,8 @@ import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
-import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
+import software.amazon.awssdk.services.s3.model.CreateBucketConfiguration;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 /**
@@ -22,7 +23,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 public class S3ObjectStorage implements ObjectStorage {
 
     private final S3Client client;
-    private final String bucket;
+    private final String bucket;\n    private final String region;
 
     public S3ObjectStorage(S3Client client,
             @org.springframework.beans.factory.annotation.Value("${jobforge.storage.s3.bucket}") String bucket) {
