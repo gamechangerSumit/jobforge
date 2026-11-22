@@ -225,8 +225,16 @@ public class InternalAiController {
             var quota=result.quota();
             data.put("quota",Map.of("creditsCharged",operation.credits(),"remaining",quota.remaining(),
                     "limit",quota.limit(),"period",quota.period(),"resetsAt",quota.resetsAt().toString()));
-        } else {
-            data.put("result",result.output());
+        } else if(operation==AiOperation.JOB_VALIDATION) {
+            data.put("quality",result.output());
+        } else if(operation==AiOperation.JOB_RECOMMENDATION) {
+            data.put("recommendations",result.output().path("recommendations"));
+            data.put("meta",Map.of("provider",result.provider()));
+        } else if(operation==AiOperation.CANDIDATE_RECOMMENDATION) {
+            data.put("candidates",result.output().path("candidates"));
+            data.put("meta",Map.of("provider",result.provider()));
+        } else if(operation==AiOperation.CAREER_INSIGHT) {
+            result.output().fields().forEachRemaining(entry -> data.put(entry.getKey(),entry.getValue()));
         }
         return ResponseEntity.status(HttpStatus.OK)
                 .header("Idempotency-Replayed",Boolean.toString(result.replayed()))
