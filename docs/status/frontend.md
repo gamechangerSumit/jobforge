@@ -102,3 +102,10 @@ Recruiter and seeker interview pages, schedule/reschedule/cancel/complete/respon
 - Added `/admin/ai` with role/period quota policy editing, active toggles, per-minute request limits, save feedback and aggregate 30-day AI usage table.
 - Added typed quota policy/usage methods and admin navigation link. Backend routes enforce ADMIN at method and internal-service boundaries.
 - Not run: frontend typecheck/lint/tests/build; add component tests and verify admin payload shape in integration.
+
+
+## Revision 12 — AI draft-to-job handoff (static implementation, unverified)
+- AI Job Studio now links into the existing recruiter job editor with the generated request ID.
+- Job editor fetches the owner-scoped AI request detail, verifies operation/status in UI, pre-fills title, description, requirements, benefits, skills, work mode and experience, and submits the AI request ID with the normal create-job payload.
+- AI request ID is hidden from manual editing; job editor remains editable and save creates a draft, never auto-publishes.
+- Not run: frontend typecheck/lint/tests/build or Playwright. Confirm form mapping and loading/error states in CI.
