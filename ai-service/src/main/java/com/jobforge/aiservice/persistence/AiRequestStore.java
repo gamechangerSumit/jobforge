@@ -5,19 +5,25 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobforge.aiservice.domain.AiOperation;
 import com.jobforge.aiservice.domain.AiRequestStatus;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-/** Persistence boundary for AI requests and their idempotency records. */
+/** Persistence boundary for AI requests, idempotency records and caller-owned history. */
 @Repository
 public class AiRequestStore {
     public record RequestRow(UUID id, UUID userId, String role, AiOperation operation,
             AiRequestStatus status, String inputHash, JsonNode output, JsonNode validationResult,
             String schemaVersion, Integer qualityScore, String provider, String model,
             Integer creditsCharged, Instant createdAt) {}
+    public record RequestPage(List<RequestRow> items, boolean hasNext) {}
 
+    private static final String SELECT_COLUMNS = """
+            id,user_id,user_role,operation,status,input_hash,output,validation_result,
+            output_schema_version,quality_score,provider,model,credits_charged,created_at
+            """;
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
 
@@ -27,12 +33,8 @@ public class AiRequestStore {
     }
 
     public Optional<RequestRow> findByIdempotencyKey(UUID userId, UUID key) {
-        return jdbc.query("""
-                SELECT id,user_id,user_role,operation,status,input_hash,output,validation_result,
-                       output_schema_version,quality_score,provider,model,credits_charged,created_at
-                  FROM ai.ai_requests
-                 WHERE user_id=? AND idempotency_key=?
-                """, rs -> rs.next() ? Optional.of(map(rs)) : Optional.empty(), userId, key);
+        return jdbc.query("SELECT " + SELECT_COLUMNS + " FROM ai.ai_requests WHERE user_id=? AND idempotency_key=?",
+                rs -> rs.next() ? Optional.of(map(rs)) : Optional.empty(), userId, key);
     }
 
     public void insertPending(UUID id, UUID userId, String role, AiOperation operation,
@@ -69,11 +71,26 @@ public class AiRequestStore {
     }
 
     public Optional<RequestRow> findOwned(UUID userId, UUID requestId) {
-        return jdbc.query("""
-                SELECT id,user_id,user_role,operation,status,input_hash,output,validation_result,
-                       output_schema_version,quality_score,provider,model,credits_charged,created_at
-                  FROM ai.ai_requests WHERE user_id=? AND id=?
-                """, rs -> rs.next() ? Optional.of(map(rs)) : Optional.empty(), userId, requestId);
+        return jdbc.query("SELECT " + SELECT_COLUMNS + " FROM ai.ai_requests WHERE user_id=? AND id=?",
+                rs -> rs.next() ? Optional.of(map(rs)) : Optional.empty(), userId, requestId);
+    }
+
+    public RequestPage pageOwned(UUID userId, AiCursorCodec.Cursor cursor, int limit) {
+        List<RequestRow> rows;
+        if(cursor==null) {
+            rows=jdbc.query("SELECT "+SELECT_COLUMNS+" FROM ai.ai_requests WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT ?",
+                    (rs,row)->map(rs),userId,limit+1);
+        } else {
+            rows=jdbc.query("""
+                    SELECT %s FROM ai.ai_requests
+                     WHERE user_id=? AND (created_at<? OR (created_at=? AND id<?))
+                     ORDER BY created_at DESC,id DESC LIMIT ?
+                    """.formatted(SELECT_COLUMNS),(rs,row)->map(rs),userId,
+                    Db.ts(cursor.createdAt()),Db.ts(cursor.createdAt()),cursor.id(),limit+1);
+        }
+        boolean hasNext=rows.size()>limit;
+        if(hasNext) rows=rows.subList(0,limit);
+        return new RequestPage(List.copyOf(rows),hasNext);
     }
 
     private RequestRow map(java.sql.ResultSet rs) throws java.sql.SQLException {
@@ -88,18 +105,12 @@ public class AiRequestStore {
 
     private JsonNode parse(String value) throws java.sql.SQLException {
         if (value == null) return null;
-        try {
-            return mapper.readTree(value);
-        } catch (java.io.IOException e) {
-            throw new java.sql.SQLException("Stored AI JSON is invalid", e);
-        }
+        try { return mapper.readTree(value); }
+        catch (java.io.IOException e) { throw new java.sql.SQLException("Stored AI JSON is invalid", e); }
     }
 
     private String json(JsonNode node) {
-        try {
-            return node == null ? null : mapper.writeValueAsString(node);
-        } catch (java.io.IOException e) {
-            throw new IllegalArgumentException("Cannot serialize AI JSON", e);
-        }
+        try { return node == null ? null : mapper.writeValueAsString(node); }
+        catch (java.io.IOException e) { throw new IllegalArgumentException("Cannot serialize AI JSON", e); }
     }
 }
