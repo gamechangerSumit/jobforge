@@ -15,8 +15,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -111,6 +113,34 @@ public class AiController {
     public Map<?, ?> quotaPolicies(@AuthenticationPrincipal AuthenticatedUser caller,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         return payload(gateway.get("/internal/v1/ai/admin/quota-policies", caller.id(), caller.role().name(), requestId));
+    }
+
+    @PutMapping("/admin/quota-policies")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Map<?, ?> updateQuotaPolicy(@AuthenticationPrincipal AuthenticatedUser caller, @RequestBody JsonNode request,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        return payload(gateway.put("/internal/v1/ai/admin/quota-policies", request,
+                caller.id(), caller.role().name(), requestId));
+    }
+
+    @PutMapping("/admin/quota-overrides/{targetUserId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Map<?, ?> putQuotaOverride(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID targetUserId,
+            @RequestBody JsonNode request, @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        return payload(gateway.put("/internal/v1/ai/admin/quota-overrides/" + targetUserId, request,
+                caller.id(), caller.role().name(), requestId));
+    }
+
+    @DeleteMapping("/admin/quota-overrides/{targetUserId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteQuotaOverride(@AuthenticationPrincipal AuthenticatedUser caller,
+            @PathVariable UUID targetUserId, @RequestParam(required = false) String period,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        String path = "/internal/v1/ai/admin/quota-overrides/" + targetUserId
+                + (period == null || period.isBlank() ? "" : "?period="
+                + java.net.URLEncoder.encode(period, java.nio.charset.StandardCharsets.UTF_8));
+        gateway.delete(path, caller.id(), caller.role().name(), requestId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/admin/usage")
