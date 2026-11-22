@@ -83,3 +83,10 @@ A feature is complete only when its contract, backend, frontend, authorization, 
 - Added `/admin/ai` quota and usage dashboard with daily/monthly role budgets, rate limits, active toggles, save actions, and 30-day aggregate usage table.
 - Added typed admin quota policy/usage client and admin navigation entry.
 - Still static/unverified; include in frontend typecheck/build and test coverage before merge.
+
+
+## AI draft-to-job handoff — 2026-11-22
+- Closed the AI draft attribution gap: the job create API fetches the AI request through the private gateway, which asks ai-service for a caller-owned request; only a successful `JOB_GENERATION` request is accepted.
+- Job creation now persists `ai_generated=true` and the verified `ai_request_id` on the job row.
+- AI Job Studio now offers a direct handoff to `/recruiter/jobs/new?aiRequestId=...`; the editor loads the saved output, pre-fills description/requirements/benefits/skills and keeps the request ID hidden for attribution. The recruiter reviews and saves a draft; publishing remains separate.
+- Static only; validate backend and frontend workflows. Remaining major gaps: trusted personalized recommendation/career context, S3-compatible storage, OpenAPI generation, and Playwright/a11y coverage.
