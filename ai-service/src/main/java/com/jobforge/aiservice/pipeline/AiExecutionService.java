@@ -73,10 +73,17 @@ public class AiExecutionService {
             return new Started(requestId,false,null,null);
         });
         if(started.replayed()) {
-            JsonNode validation=started.previous().output()==null?mapper.createObjectNode():mapper.createObjectNode();
-            return new ExecutionResult(started.requestId(),operation,started.previous().provider(),
-                    started.previous().model(),"job-draft.v1",started.previous().output(),
-                    validation,started.quota(),true);
+            var previous=started.previous();
+            AiOutputValidator.Outcome replayValidation=null;
+            JsonNode replayQuality=mapper.createObjectNode();
+            if(operation==AiOperation.JOB_GENERATION) {
+                replayValidation=new AiOutputValidator.Outcome(true,previous.schemaVersion(),
+                        previous.qualityScore(),previous.validationResult());
+                replayQuality=qualityScorer.score(previous.output(),replayValidation);
+            }
+            return new ExecutionResult(started.requestId(),operation,previous.provider(),
+                    previous.model(),previous.schemaVersion(),previous.output(),
+                    replayQuality,started.quota(),true);
         }
 
         try {
