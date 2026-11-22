@@ -28,17 +28,17 @@ public class AiExecutionService {
     private final TransactionTemplate transactions;
     private final AiRequestStore requests;
     private final AiQuotaStore quotas;
-    private final InputSanitizer sanitizer;
+    private final InputSanitizer sanitizer;\n    private final AiRequestValidator requestValidator;
     private final AIProviderSelector providers;
     private final OutputValidators validators;
     private final QualityScorer qualityScorer;
     private final ObjectMapper mapper;
 
     public AiExecutionService(TransactionTemplate transactions, AiRequestStore requests, AiQuotaStore quotas,
-            InputSanitizer sanitizer, AIProviderSelector providers, OutputValidators validators,
+            InputSanitizer sanitizer, AiRequestValidator requestValidator, AIProviderSelector providers, OutputValidators validators,
             QualityScorer qualityScorer, ObjectMapper mapper) {
         this.transactions=transactions; this.requests=requests; this.quotas=quotas;
-        this.sanitizer=sanitizer; this.providers=providers; this.validators=validators;
+        this.sanitizer=sanitizer; this.requestValidator=requestValidator; this.providers=providers; this.validators=validators;
         this.qualityScorer=qualityScorer; this.mapper=mapper;
     }
 
@@ -47,7 +47,7 @@ public class AiExecutionService {
         if (!operation.allows(caller.role())) throw new AiServiceException(AiErrorCode.ACCESS_DENIED,"Your role cannot perform this AI operation.");
         if (operation.idempotencyKeyRequired() && idempotencyKey==null)
             throw AiServiceException.validation("Idempotency-Key","NOT_BLANK","A UUID Idempotency-Key is required.");
-        JsonNode providerInput=sanitizer.sanitize(rawInput);
+        requestValidator.validate(operation,rawInput);\n        JsonNode providerInput=sanitizer.sanitize(rawInput);
         String inputHash=sanitizer.hash(providerInput);
         AIProvider provider=providers.select();
         AIProvider.ProviderInfo info=provider.info();
