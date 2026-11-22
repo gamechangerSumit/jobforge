@@ -31,7 +31,7 @@ class S3ObjectStorageTest {
                 .thenReturn(ResponseBytes.fromByteArray(GetObjectResponse.builder().build(), expected));
         when(client.deleteObject(any(DeleteObjectRequest.class))).thenReturn(DeleteObjectResponse.builder().build());
 
-        ObjectStorage storage = new S3ObjectStorage(client, "private-uploads");
+        ObjectStorage storage = new S3ObjectStorage(client, "private-uploads", "ap-south-1");
         storage.store("avatars/user-1.png", expected);
         assertArrayEquals(expected, storage.load("avatars/user-1.png"));
         storage.delete("avatars/user-1.png");
