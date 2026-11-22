@@ -90,3 +90,9 @@ Recruiter and seeker interview pages, schedule/reschedule/cancel/complete/respon
 - Added typed AI API client and recruiter AI Job Studio UI: role brief, dynamic skill list, tone/work-mode/experience selectors, generated draft preview, quality issues, quota display and copy action.
 - AI generation UI is connected to the newly added backend gateway; save-to-job flow is intentionally not shown until server-side AI request ownership/consumption is wired.
 - Not run: `pnpm typecheck`, `pnpm lint`, `pnpm test`, or Playwright. Verify Next.js route compilation and component types before merge.
+
+
+## Revision 10 — AI Studio polish follow-up (static implementation, unverified)
+- AI Job Studio now receives the standard backend response envelope and displays generation result, quality and quota information through the typed client.
+- Added recruiter navigation entry and admin AI quota backend endpoints are now available for a future admin UI.
+- Draft PR #10 opened against develop for CI/review. No frontend typecheck, lint, tests or production build has been run here.
