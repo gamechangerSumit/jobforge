@@ -29,19 +29,21 @@ public class AiExecutionService {
     private final AiQuotaStore quotas;
     private final InputSanitizer sanitizer;
     private final AiRequestValidator requestValidator;
+    private final AiRateLimiter rateLimiter;
     private final AIProviderSelector providers;
     private final OutputValidators validators;
     private final QualityScorer qualityScorer;
     private final ObjectMapper mapper;
 
     public AiExecutionService(TransactionTemplate transactions, AiRequestStore requests, AiQuotaStore quotas,
-            InputSanitizer sanitizer, AiRequestValidator requestValidator, AIProviderSelector providers,
+            InputSanitizer sanitizer, AiRequestValidator requestValidator, AiRateLimiter rateLimiter, AIProviderSelector providers,
             OutputValidators validators, QualityScorer qualityScorer, ObjectMapper mapper) {
         this.transactions = transactions;
         this.requests = requests;
         this.quotas = quotas;
         this.sanitizer = sanitizer;
         this.requestValidator = requestValidator;
+        this.rateLimiter = rateLimiter;
         this.providers = providers;
         this.validators = validators;
         this.qualityScorer = qualityScorer;
@@ -58,6 +60,7 @@ public class AiExecutionService {
         }
 
         requestValidator.validate(operation, rawInput);
+        rateLimiter.check(caller.userId().toString(), quotas.snapshot(caller.userId(), caller.role()).rateLimitPerMinute());
         JsonNode providerInput = sanitizer.sanitize(rawInput);
         String inputHash = sanitizer.hash(providerInput);
         AIProvider provider = providers.select();
