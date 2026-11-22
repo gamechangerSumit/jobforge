@@ -138,3 +138,9 @@ Shared files touched (interview changes preserved; additions only): `AuditAction
 - AI request history now adapts the internal cursor envelope to the shared backend `CursorResponse`; other internal `data` payloads are unwrapped before the backend standard response advice wraps them.
 - Added `RequestRateLimitClassifierTest.aiOperationsUseTheDedicatedAiBucket`.
 - Draft PR #10 opened against develop. No Maven/CI result has been confirmed. AI draft-to-job ownership validation remains open.
+
+
+## Revision 11 — AI draft attribution and job-create validation (static implementation, unverified)
+- `JobController.create` validates any `aiRequestId` through the private AI gateway. ai-service's owner-scoped request detail endpoint ensures the request belongs to the authenticated recruiter; backend accepts only `JOB_GENERATION` + `SUCCEEDED`.
+- `JobService.create` now persists `aiGenerated=true` and the verified request ID on the job row. AI request output is never trusted from the browser; only the identifier is submitted and ai-service is the owner-scoped source of truth.
+- Not run: `mvn -B verify` or Job API integration tests. Verify transaction behavior, request ownership negatives and job attribution fields.
