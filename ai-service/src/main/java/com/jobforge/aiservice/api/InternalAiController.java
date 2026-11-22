@@ -158,11 +158,14 @@ public class InternalAiController {
 
     @DeleteMapping("/admin/quota-overrides/{targetUserId}")
     public ResponseEntity<Void> deleteQuotaOverride(@PathVariable UUID targetUserId,
-            @RequestParam String period,@RequestHeader("X-User-Id") String userId,
+            @RequestParam(required=false) String period,@RequestHeader("X-User-Id") String userId,
             @RequestHeader("X-User-Role") String role) {
         requireAdmin(userId,role);
-        validatePeriod(period);
-        quotas.deleteOverride(targetUserId,period);
+        if(period==null||period.isBlank()) quotas.deleteOverrides(targetUserId);
+        else {
+            validatePeriod(period);
+            quotas.deleteOverride(targetUserId,period);
+        }
         return ResponseEntity.noContent().build();
     }
 
