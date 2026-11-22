@@ -83,6 +83,9 @@ jobforge:
     upload-per-minute: ${RATE_LIMIT_UPLOAD_PER_MINUTE:10}
   storage:
     local-dir: ${STORAGE_LOCAL_PATH:./data/uploads}
+  ai:
+    base-url: ${AI_SERVICE_URL:http://localhost:8090}
+    internal-token: ${AI_INTERNAL_TOKEN:}
   dev-seed:
     enabled: ${SEED_DEV_DATA:false}
     password: ${DEV_SEED_PASSWORD:}
