@@ -69,8 +69,12 @@ public class JobDraftV1Validator implements AiOutputValidator {
     }
     private void list(JsonNode root,String field,int min,int max,boolean required,List<Object> issues) {
         JsonNode n=root.path(field);
-        if (!n.isArray() || n.size()<min || n.size()>max) {
-            if (required || (n.isArray() && n.size()>max) || (n.isArray() && n.size()>0))
+        if (!n.isArray()) {
+            issues.add(issue("SIZE","ERROR",field,"Field must be an array."));
+            return;
+        }
+        if (n.size()<min || n.size()>max) {
+            if (required || n.size()>max || n.size()>0)
                 issues.add(issue("SIZE","ERROR",field,"List size is outside the documented limit."));
             return;
         }
