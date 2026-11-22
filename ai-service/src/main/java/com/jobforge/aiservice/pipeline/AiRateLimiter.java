@@ -5,7 +5,7 @@ import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
 /** Per-user rolling minute guard; Redis is preferred and a bounded in-process fallback keeps the service available. */
@@ -25,7 +25,7 @@ public class AiRateLimiter {
             if(count!=null&&count==1L) redis.expire(redisKey,Duration.ofSeconds(65));
             if(count!=null&&count>limit) throw AiServiceException.rateLimited(60-(System.currentTimeMillis()/1000L)%60);
             return;
-        } catch (RedisConnectionFailureException | org.springframework.data.redis.RedisSystemException ex) {
+        } catch (DataAccessException ex) {
             // Fall through to process-local guard. PostgreSQL quota ledger remains authoritative for credits.
         }
         LocalBucket bucket=local.compute(userId,(key,current) ->
