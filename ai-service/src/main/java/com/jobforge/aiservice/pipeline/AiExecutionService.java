@@ -76,11 +76,11 @@ public class AiExecutionService {
                         throw new AiServiceException(AiErrorCode.CONFLICT,
                                 "Idempotency-Key was already used with a different request body.");
                     }
-                    if (row.status() == AiRequestStatus.SUCCEEDED) {
+                    if (row.status() == AiRequestStatus.SUCCEEDED || row.status() == AiRequestStatus.FAILED) {
                         return new Started(row.id(), true, row, quotas.snapshot(caller.userId(), caller.role()));
                     }
                     throw new AiServiceException(AiErrorCode.CONFLICT,
-                            "A request with this Idempotency-Key is already in progress or has failed.");
+                            "A request with this Idempotency-Key is already in progress.");
                 }
             }
             UUID requestId = UUID.randomUUID();
@@ -93,6 +93,12 @@ public class AiExecutionService {
 
         if (started.replayed()) {
             var previous = started.previous();
+            if (previous.status() == AiRequestStatus.FAILED) {
+                AiErrorCode code;
+                try { code = AiErrorCode.valueOf(previous.errorCode()); }
+                catch (RuntimeException ex) { code = AiErrorCode.INTERNAL_ERROR; }
+                throw AiServiceException.replay(code);
+            }
             JsonNode replayQuality = mapper.createObjectNode();
             if (operation == AiOperation.JOB_GENERATION) {
                 var validation = new AiOutputValidator.Outcome(true, previous.schemaVersion(),
