@@ -14,7 +14,7 @@ function linksFor(role?: string): NavLink[] {
     { href: '/interviews', label: 'Interviews' }, { href: '/community', label: 'Community' },
     { href: '/profile', label: 'My profile' }];
   if (role === 'RECRUITER') return [...common,
-    { href: '/recruiter/dashboard', label: 'Overview' }, { href: '/recruiter/jobs', label: 'My jobs' },
+    { href: '/recruiter/dashboard', label: 'Overview' }, { href: '/recruiter/ai-studio', label: 'AI Job Studio' }, { href: '/recruiter/jobs', label: 'My jobs' },
     { href: '/recruiter/interviews', label: 'Interviews' }, { href: '/recruiter/analytics', label: 'Analytics' },
     { href: '/recruiter/company', label: 'Company' }, { href: '/community', label: 'Community' }];
   if (role === 'ADMIN') return [...common,
