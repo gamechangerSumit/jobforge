@@ -68,6 +68,11 @@ public class AiGatewayService implements AiFacade {
         }
     }
 
+    @Override
+    public Map<?, ?> ownedRequest(UUID requestId, UUID userId, String role, String traceId) {
+        return get("/internal/v1/ai/requests/" + requestId, userId, role, traceId);
+    }
+
     public Map<?, ?> put(String path, JsonNode body, UUID userId, String role, String requestId) {
         if (internalToken == null || internalToken.isBlank()) {
             throw new ApiException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "AI service is not configured.");
