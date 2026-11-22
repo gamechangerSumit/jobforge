@@ -18,7 +18,8 @@ class InputSanitizerTest {
                  "nested":{"Password":"hidden","safe":1,"items":[{"authToken":"x","value":2}]}}
                 """);
         JsonNode output = sanitizer.sanitize(input);
-        assertThat(output.has("context")).isFalse();
+        assertThat(output.has("context")).isTrue();
+        assertThat(sanitizer.forPersistence(output).has("context")).isFalse();
         assertThat(output.has("apiKey")).isFalse();
         assertThat(output.at("/nested/Password").isMissingNode()).isTrue();
         assertThat(output.at("/nested/safe").asInt()).isEqualTo(1);
