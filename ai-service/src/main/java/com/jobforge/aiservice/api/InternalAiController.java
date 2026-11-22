@@ -141,8 +141,12 @@ public class InternalAiController {
         } else {
             data.put("result",result.output());
         }
+        String requestId;
+        try { requestId=UUID.fromString(traceId==null?"":traceId).toString(); }
+        catch(IllegalArgumentException ex) { requestId=UUID.randomUUID().toString(); }
         return ResponseEntity.status(HttpStatus.OK)
                 .header("Idempotency-Replayed",Boolean.toString(result.replayed()))
+                .header("X-Request-Id",requestId)
                 .body(Map.of("data",data));
     }
 }
