@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
-/** Minimizes persisted AI input and computes a deterministic SHA-256 idempotency fingerprint. */
+/** Removes credentials, separates ephemeral backend context from persisted input, and hashes user payloads. */
 @Component
 public class InputSanitizer {
     private static final Pattern SECRET_KEY =
@@ -24,24 +24,35 @@ public class InputSanitizer {
     public InputSanitizer(ObjectMapper mapper) {
         this.canonical = mapper.copy().configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
     }
+
+    /** Sanitized payload sent to provider; trusted backend context remains available for generation. */
     public JsonNode sanitize(JsonNode payload) {
         if (payload == null || !payload.isObject()) {
             throw new IllegalArgumentException("AI input must be a JSON object");
         }
         ObjectNode copy = payload.deepCopy();
-        copy.remove("context");
         strip(copy);
         return copy;
     }
+
+    /** Persist only caller request data. Backend context can contain profile/company PII and is never stored. */
+    public JsonNode forPersistence(JsonNode sanitized) {
+        ObjectNode copy = sanitized.deepCopy();
+        copy.remove("context");
+        return copy;
+    }
+
     public String hash(JsonNode sanitized) {
         try {
-            Object tree = canonical.treeToValue(sanitized, Object.class);
+            JsonNode safe = forPersistence(sanitized);
+            Object tree = canonical.treeToValue(safe, Object.class);
             byte[] bytes = canonical.writeValueAsString(tree).getBytes(StandardCharsets.UTF_8);
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
         } catch (java.io.IOException | NoSuchAlgorithmException e) {
             throw new IllegalStateException("Cannot hash AI input", e);
         }
     }
+
     private static void strip(JsonNode node) {
         if (node instanceof ObjectNode object) {
             Iterator<Map.Entry<String, JsonNode>> it = object.fields();
