@@ -131,3 +131,10 @@ Shared files touched (interview changes preserved; additions only): `AuditAction
 - Backend-to-AI calls use `X-Internal-Token` plus server-derived user ID/role; browser JWT is not propagated. Recruiter generation requires approved recruiter profile and company membership; company ID is overwritten from trusted membership.
 - Added `jobforge.ai.base-url` / `jobforge.ai.internal-token` configuration, Docker app-profile service URL wiring, and AI-specific 10/min request classification.
 - Remaining: AI draft request ID verification on job creation, personalized recommendation/career context assembly, admin quota writes/overrides, upstream error detail mapping, and tests. Static only; run `mvn -B verify` before merge.
+
+
+## Revision 10 — AI gateway follow-up (static implementation, unverified)
+- Added admin quota policy update, user quota override update/delete endpoints. ADMIN is enforced by `@PreAuthorize` and revalidated in ai-service.
+- AI request history now adapts the internal cursor envelope to the shared backend `CursorResponse`; other internal `data` payloads are unwrapped before the backend standard response advice wraps them.
+- Added `RequestRateLimitClassifierTest.aiOperationsUseTheDedicatedAiBucket`.
+- Draft PR #10 opened against develop. No Maven/CI result has been confirmed. AI draft-to-job ownership validation remains open.
