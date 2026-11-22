@@ -15,14 +15,14 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class AiRequestStore {
     public record RequestRow(UUID id, UUID userId, String role, AiOperation operation,
-            AiRequestStatus status, String inputHash, JsonNode output, JsonNode validationResult,
+            AiRequestStatus status, String errorCode, String inputHash, JsonNode output, JsonNode validationResult,
             String schemaVersion, Integer qualityScore, String provider, String model,
             Integer creditsCharged, Instant createdAt) {}
     public record RequestPage(List<RequestRow> items, boolean hasNext) {}
 
     private static final String SELECT_COLUMNS = """
             id,user_id,user_role,operation,status,input_hash,output,validation_result,
-            output_schema_version,quality_score,provider,model,credits_charged,created_at
+            error_code,output_schema_version,quality_score,provider,model,credits_charged,created_at
             """;
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
@@ -104,7 +104,7 @@ public class AiRequestStore {
     private RequestRow map(java.sql.ResultSet rs) throws java.sql.SQLException {
         return new RequestRow(rs.getObject("id", UUID.class), rs.getObject("user_id", UUID.class),
                 rs.getString("user_role"), AiOperation.valueOf(rs.getString("operation")),
-                AiRequestStatus.valueOf(rs.getString("status")), rs.getString("input_hash"),
+                AiRequestStatus.valueOf(rs.getString("status")), rs.getString("error_code"), rs.getString("input_hash"),
                 parse(rs.getString("output")), parse(rs.getString("validation_result")),
                 rs.getString("output_schema_version"), (Integer) rs.getObject("quality_score"),
                 rs.getString("provider"), rs.getString("model"),
