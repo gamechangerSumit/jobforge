@@ -42,7 +42,7 @@ public class AiController {
 
     @PostMapping("/job-drafts")
     @PreAuthorize("hasRole('RECRUITER')")
-    public ResponseEntity<Map<?, ?>> createJobDraft(@AuthenticationPrincipal AuthenticatedUser caller,
+    public ResponseEntity<?> createJobDraft(@AuthenticationPrincipal AuthenticatedUser caller,
             @RequestBody JsonNode request,
             @RequestHeader("Idempotency-Key") String idempotencyKey,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
@@ -66,7 +66,7 @@ public class AiController {
 
     @PostMapping("/job-validations")
     @PreAuthorize("hasRole('RECRUITER')")
-    public Map<?, ?> validateJob(@AuthenticationPrincipal AuthenticatedUser caller, @RequestBody JsonNode request,
+    public Object validateJob(@AuthenticationPrincipal AuthenticatedUser caller, @RequestBody JsonNode request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         if (!profiles.isRecruiterApproved(caller.id())) {
@@ -77,7 +77,7 @@ public class AiController {
     }
 
     @GetMapping("/usage/me")
-    public Map<?, ?> usage(@AuthenticationPrincipal AuthenticatedUser caller,
+    public Object usage(@AuthenticationPrincipal AuthenticatedUser caller,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         return payload(gateway.get("/internal/v1/ai/usage?userId=" + caller.id(), caller.id(), caller.role().name(), requestId));
     }
@@ -103,21 +103,21 @@ public class AiController {
     }
 
     @GetMapping("/requests/{id}")
-    public Map<?, ?> requestDetail(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id,
+    public Object requestDetail(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         return payload(gateway.get("/internal/v1/ai/requests/" + id, caller.id(), caller.role().name(), requestId));
     }
 
     @GetMapping("/admin/quota-policies")
     @PreAuthorize("hasRole('ADMIN')")
-    public Map<?, ?> quotaPolicies(@AuthenticationPrincipal AuthenticatedUser caller,
+    public Object quotaPolicies(@AuthenticationPrincipal AuthenticatedUser caller,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         return payload(gateway.get("/internal/v1/ai/admin/quota-policies", caller.id(), caller.role().name(), requestId));
     }
 
     @PutMapping("/admin/quota-policies")
     @PreAuthorize("hasRole('ADMIN')")
-    public Map<?, ?> updateQuotaPolicy(@AuthenticationPrincipal AuthenticatedUser caller, @RequestBody JsonNode request,
+    public Object updateQuotaPolicy(@AuthenticationPrincipal AuthenticatedUser caller, @RequestBody JsonNode request,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         return payload(gateway.put("/internal/v1/ai/admin/quota-policies", request,
                 caller.id(), caller.role().name(), requestId));
@@ -125,7 +125,7 @@ public class AiController {
 
     @PutMapping("/admin/quota-overrides/{targetUserId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public Map<?, ?> putQuotaOverride(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID targetUserId,
+    public Object putQuotaOverride(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID targetUserId,
             @RequestBody JsonNode request, @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         return payload(gateway.put("/internal/v1/ai/admin/quota-overrides/" + targetUserId, request,
                 caller.id(), caller.role().name(), requestId));
@@ -145,12 +145,12 @@ public class AiController {
 
     @GetMapping("/admin/usage")
     @PreAuthorize("hasRole('ADMIN')")
-    public Map<?, ?> adminUsage(@AuthenticationPrincipal AuthenticatedUser caller,
+    public Object adminUsage(@AuthenticationPrincipal AuthenticatedUser caller,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         return payload(gateway.get("/internal/v1/ai/admin/usage", caller.id(), caller.role().name(), requestId));
     }
-    private static Map<?, ?> payload(Map<?, ?> envelope) {
+    private static Object payload(Map<?, ?> envelope) {
         Object data = envelope == null ? null : envelope.get("data");
-        return data instanceof Map<?, ?> value ? value : Map.of();
+        return data == null ? Map.of() : data;
     }
 }
