@@ -70,7 +70,7 @@ public class InternalAiController {
             data.put("quality",result.quality());
             var quota=result.quota();
             data.put("quota",Map.of("creditsCharged",operation.credits(),"remaining",quota.remaining(),
-                    "limit",quota.limit(),"period","DAILY","resetsAt",quota.resetsAt().toString()));
+                    "limit",quota.limit(),"period",quota.period(),"resetsAt",quota.resetsAt().toString()));
         } else {
             data.put("result",result.output());
         }
