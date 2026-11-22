@@ -2,7 +2,7 @@ package com.jobforge.backend.job.api;
 
 import com.jobforge.backend.job.app.JobDetailView;
 import com.jobforge.backend.job.app.JobService;
-import com.jobforge.backend.ai.AiGatewayService;
+import com.jobforge.backend.ai.facade.AiFacade;
 import com.jobforge.backend.shared.error.BusinessRuleException;
 import java.util.Map;
 import com.jobforge.backend.job.facade.JobFacade.Viewer;
@@ -31,9 +31,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class JobController {
 
     private final JobService jobs;
-    private final AiGatewayService aiGateway;
+    private final AiFacade aiGateway;
 
-    public JobController(JobService jobs, AiGatewayService aiGateway) {
+    public JobController(JobService jobs, AiFacade aiGateway) {
         this.jobs = jobs;
         this.aiGateway = aiGateway;
     }
@@ -51,8 +51,7 @@ public class JobController {
             @Valid @RequestBody JobRequests.Create request,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         if (request.aiRequestId() != null) {
-            Map<?, ?> envelope = aiGateway.get("/internal/v1/ai/requests/" + request.aiRequestId(),
-                    caller.id(), caller.role().name(), requestId);
+            Map<?, ?> envelope = aiGateway.ownedRequest(request.aiRequestId(), caller.id(), caller.role().name(), requestId);
             Object rawData = envelope.get("data");
             if (!(rawData instanceof Map<?, ?> data)
                     || !"JOB_GENERATION".equals(data.get("operation"))
