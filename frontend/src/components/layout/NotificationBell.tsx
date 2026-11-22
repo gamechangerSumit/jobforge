@@ -1,21 +1,32 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/lib/auth/session';
 import { notificationHref } from '@/lib/notifications/deepLink';
-import { listNotifications, markAllNotificationsRead, markNotificationRead, unreadCount } from '@/lib/api/notifications';
+import { listNotifications, markAllNotificationsRead, markNotificationRead, streamNotifications, unreadCount } from '@/lib/api/notifications';
 
 export function NotificationBell() {
   const qc = useQueryClient();
   const { user } = useSession();
   const [open, setOpen] = useState(false);
   const count = useQuery({ queryKey: ['notifications', 'count'], queryFn: unreadCount, refetchInterval: 60_000 });
-  const list = useQuery({ queryKey: ['notifications', 'list'], queryFn: () => listNotifications(false, 20), enabled: open });
+  const list = useQuery({ queryKey: ['notifications', 'list'], queryFn: () => listNotifications(false, null, 20), enabled: open });
+  useEffect(() => {
+    if (!user) return;
+    const controller = new AbortController();
+    void streamNotifications(() => {
+      void qc.invalidateQueries({ queryKey: ['notifications'] });
+    }, controller.signal).catch(() => {
+      // The periodic unread-count refresh remains a safe fallback if SSE is unavailable.
+    });
+    return () => controller.abort();
+  }, [user?.id, qc]);
   const refresh = () => qc.invalidateQueries({ queryKey: ['notifications'] });
   const readOne = useMutation({ mutationFn: markNotificationRead, onSuccess: refresh });
   const readAll = useMutation({ mutationFn: markAllNotificationsRead, onSuccess: refresh });
   const unread = count.data?.count ?? 0;
+  const notifications = list.data?.items ?? [];
   return (
     <div className="relative">
       <button aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`} aria-expanded={open} onClick={() => setOpen((v) => !v)} className="relative font-semibold">
@@ -29,9 +40,9 @@ export function NotificationBell() {
             <button className="underline disabled:opacity-50" disabled={unread === 0} onClick={() => readAll.mutate()}>Mark all read</button>
           </div>
           {list.isError && <p role="alert" className="text-sm text-red-700">Could not load notifications.</p>}
-          {list.data?.length === 0 && <p className="text-sm text-slate-600">You are all caught up.</p>}
+          {list.isSuccess && notifications.length === 0 && <p className="text-sm text-slate-600">You are all caught up.</p>}
           <ul className="max-h-80 divide-y overflow-y-auto">
-            {list.data?.map((n) => (
+            {notifications.map((n) => (
               <li key={n.id} className="py-2 text-sm">
                 {(() => {
                   const href = notificationHref(n, user?.role);
