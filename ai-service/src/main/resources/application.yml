@@ -9,10 +9,8 @@ spring:
       maximum-pool-size: 10
       connection-timeout: 5000
   flyway:
-    enabled: true
-    url: ${AI_DB_URL:jdbc:postgresql://localhost:5432/jobforge}
-    user: ${DB_MIGRATION_USER:jobforge_owner}
-    password: ${DB_MIGRATION_PASSWORD}
+    # AI migrations run in the dedicated ai-migrate container, never with owner credentials in runtime.
+    enabled: ${AI_FLYWAY_ENABLED:false}
     schemas: ai
     default-schema: ai
     create-schemas: false
@@ -20,7 +18,6 @@ spring:
     locations: classpath:db/migration
     clean-disabled: true
     validate-on-migrate: true
-    connect-retries: 5
   data:
     redis:
       host: ${REDIS_HOST:localhost}
