@@ -16,7 +16,7 @@ cd frontend && pnpm install && pnpm dev           # http://localhost:3000  (prox
 cd ai-service && mvn spring-boot:run              # http://localhost:8090  (optional, LocalTemplateProvider)
 ```
 
-Or run the applications in containers too: `docker compose --profile app up -d --build`.
+Or run the applications in containers too: `docker compose --profile app up -d --build`.\n\n### Optional S3-compatible storage (MinIO)\n\nThe default `STORAGE_PROVIDER=local` keeps uploads on the local volume. To use MinIO, set `STORAGE_PROVIDER=s3`, `S3_ENDPOINT=http://localhost:9000`, `S3_BUCKET=jobforge-uploads`, and strong `S3_ACCESS_KEY` / `S3_SECRET_KEY` values in `.env`. Start MinIO first with `docker compose --profile storage up -d minio`; then start the app profile with `docker compose --profile app up -d --build`. For a containerized backend, set `S3_ENDPOINT=http://minio:9000` in `.env`. For AWS S3, leave `S3_ENDPOINT` empty and provide AWS credentials through the S3 settings. The adapter uses the existing `ObjectStorage` port; no public bucket or browser-facing object URL is created.
 
 Set `SEED_DEV_DATA=true` and `DEV_SEED_PASSWORD` (min 12 chars) in `.env` for a seeded database:
 `admin@jobforge.local`, `recruiter@jobforge.local` (approved, owns a verified company), `seeker@jobforge.local`, 60 published jobs.
