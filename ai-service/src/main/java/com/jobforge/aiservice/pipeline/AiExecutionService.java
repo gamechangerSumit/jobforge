@@ -2,6 +2,7 @@ package com.jobforge.aiservice.pipeline;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jobforge.aiservice.domain.AiOperation;
 import com.jobforge.aiservice.domain.AiRequestStatus;
 import com.jobforge.aiservice.domain.CallerIdentity;
@@ -118,7 +119,7 @@ public class AiExecutionService {
                 validation = validator.validate(output);
                 if (!validation.valid()) {
                     // One constrained repair attempt. Provider receives only validation issues, not system prompts.
-                    var repairInput = providerInput.deepCopy();
+                    ObjectNode repairInput = (ObjectNode) providerInput.deepCopy();
                     repairInput.set("repairIssues", validation.validationResult().path("issues"));
                     generated = provider.generate(new AIProvider.ProviderRequest(
                             operation.name(), repairInput.toString(), traceId));
