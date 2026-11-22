@@ -46,6 +46,9 @@ public class LocalTemplateProvider implements AIProvider {
                 case "JOB_RECOMMENDATION" ->
                         recommendJobs(input);
 
+                case "CANDIDATE_RECOMMENDATION" ->
+                        recommendCandidates(input);
+
                 case "CAREER_INSIGHT" ->
                         careerInsights(input);
 
@@ -283,6 +286,14 @@ public class LocalTemplateProvider implements AIProvider {
                                 List.of()
                         )
                 ),
+                0,
+                0
+        );
+    }
+
+    private ProviderResult recommendCandidates(JsonNode input) throws Exception {
+        return new ProviderResult(
+                objectMapper.writeValueAsString(java.util.Map.of("candidates", List.of())),
                 0,
                 0
         );
