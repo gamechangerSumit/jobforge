@@ -28,6 +28,12 @@ class RequestRateLimitClassifierTest {
     }
 
     @Test
+    void aiOperationsUseTheDedicatedAiBucket() {
+        assertThat(RequestRateLimitInterceptor.classify("POST", "/api/v1/ai/job-drafts")).isEqualTo(RateLimitClass.AI);
+        assertThat(RequestRateLimitInterceptor.classify("GET", "/api/v1/ai/usage/me")).isEqualTo(RateLimitClass.AI);
+    }
+
+    @Test
     void everythingElseIsDefault() {
         assertThat(RequestRateLimitInterceptor.classify("GET", "/api/v1/jobs/3f2a")).isEqualTo(RateLimitClass.DEFAULT);
         assertThat(RequestRateLimitInterceptor.classify("POST", "/api/v1/jobs")).isEqualTo(RateLimitClass.DEFAULT);
