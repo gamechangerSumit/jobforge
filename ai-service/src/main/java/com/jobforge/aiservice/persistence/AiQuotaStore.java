@@ -64,6 +64,17 @@ public class AiQuotaStore {
         jdbc.update("UPDATE ai.ai_usage_ledger SET state='RELEASED',settled_at=now() WHERE request_id=? AND state='RESERVED'", requestId);
     }
 
+    public int releaseTimedOutReservations() {
+        return jdbc.update("""
+                UPDATE ai.ai_usage_ledger
+                   SET state='RELEASED',settled_at=now()
+                 WHERE state='RESERVED' AND request_id IN (
+                       SELECT id FROM ai.ai_requests
+                        WHERE status='FAILED' AND error_code='AI_TIMEOUT'
+                          AND completed_at > now() - interval '1 day')
+                """);
+    }
+
     public QuotaSnapshot snapshot(UUID userId, String role) {
         Map<String,Policy> policies=lockPolicies(role);
         Policy daily=required(policies,"DAILY");
