@@ -19,6 +19,7 @@ public class JobDraftV1Validator implements AiOutputValidator {
     private static final Pattern HTML = Pattern.compile("<\\s*/?\\s*[a-zA-Z][^>]*>");
     private static final Pattern URL = Pattern.compile("(?i)\\b(?:https?://|www\\.)\\S+");
     private static final Pattern EMAIL = Pattern.compile("(?i)\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b");
+    private static final Pattern BANNED_TERMS = Pattern.compile("(?i)\\b(ninja|rockstar|guru|digital native|native english speaker|young and energetic|culture fit)\\b");
     private final ObjectMapper mapper;
 
     public JobDraftV1Validator(ObjectMapper mapper) { this.mapper = mapper; }
@@ -94,6 +95,7 @@ public class JobDraftV1Validator implements AiOutputValidator {
             if(HTML.matcher(value).find()) issues.add(issue("HTML_NOT_ALLOWED","ERROR","output","HTML markup is not allowed."));
             if(URL.matcher(value).find()) issues.add(issue("URL_NOT_ALLOWED","ERROR","output","URLs are not allowed."));
             if(EMAIL.matcher(value).find()) issues.add(issue("PII_NOT_ALLOWED","ERROR","output","Email addresses are not allowed."));
+            if(BANNED_TERMS.matcher(value).find()) issues.add(issue("BIASED_LANGUAGE","ERROR","output","Avoid exclusionary or biased job language."));
         } else if(node.isContainerNode()) node.elements().forEachRemaining(child -> scan(child,issues));
     }
     private Outcome invalid(String code,String field,String message) {
