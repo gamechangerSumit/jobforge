@@ -70,3 +70,10 @@ A feature is complete only when its contract, backend, frontend, authorization, 
 - Frontend shell refreshed: responsive role-aware navigation, visual design tokens, landing page, metadata, and footer.
 - Removed personal-looking seed credentials from `.env.example`; demo seeding now defaults off.
 - **Not verified:** Maven, pnpm typecheck/lint/tests, Docker Compose, or Playwright have not been run in this environment. AI draft-to-job persistence is still blocked by the existing `JobService.create` guard rejecting `aiRequestId`; recommendations/career insight context assembly and S3-compatible storage remain open.
+
+
+## Follow-up — 2026-11-22
+- Added admin quota policy updates, per-user quota overrides and override deletion to the backend gateway; all routes require ADMIN both at the backend method boundary and in ai-service.
+- Corrected AI gateway response handling to unwrap internal envelopes into the backend's standard envelope and preserve cursor metadata for request history.
+- Added a unit test for the AI-specific rate-limit class.
+- Opened draft PR #10 against `develop` for CI/review: https://github.com/gamechangerSumit/jobforge/pull/10. GitHub reported `mergeable=false` at creation time; investigate before any merge. No workflow runs were visible when checked.
