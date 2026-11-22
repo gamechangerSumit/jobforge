@@ -17,12 +17,13 @@ public class AiQuotaStore {
     public record QuotaSnapshot(int limit, int used, int remaining, Instant resetsAt,
             int rateLimitPerMinute, String period) {}
     private record Policy(int limit,int rate) {}
+    public record QuotaPolicy(String role,String period,int creditLimit,int rateLimitPerMinute,boolean active) {}
     private final JdbcTemplate jdbc;
 
     public AiQuotaStore(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     public QuotaSnapshot reserve(UUID userId, String role, UUID requestId, String operation, int credits) {
-        Map<String,Policy> policies=lockPolicies(role);
+        Map<String,Policy> policies=lockPolicies(role,userId);
         Policy daily=required(policies,"DAILY");
         Policy monthly=required(policies,"MONTHLY");
         LocalDate today=LocalDate.now(ZoneOffset.UTC);
@@ -75,8 +76,54 @@ public class AiQuotaStore {
                 """);
     }
 
+    public java.util.List<QuotaPolicy> listPolicies() {
+        return jdbc.query("""
+                SELECT role,period,credit_limit,rate_limit_per_minute,active
+                  FROM ai.ai_quota_policies ORDER BY role,period
+                """,(rs,row)->new QuotaPolicy(rs.getString("role"),rs.getString("period"),
+                rs.getInt("credit_limit"),rs.getInt("rate_limit_per_minute"),rs.getBoolean("active")));
+    }
+
+    public void upsertPolicy(String role,String period,int creditLimit,int rateLimit,boolean active,UUID adminId) {
+        jdbc.update("""
+                INSERT INTO ai.ai_quota_policies(role,period,credit_limit,rate_limit_per_minute,active,updated_by,updated_at)
+                VALUES (?,?,?,?,?,?,now())
+                ON CONFLICT(role,period) DO UPDATE SET credit_limit=excluded.credit_limit,
+                    rate_limit_per_minute=excluded.rate_limit_per_minute,active=excluded.active,
+                    updated_by=excluded.updated_by,updated_at=now()
+                """,role,period,creditLimit,rateLimit,active,adminId);
+    }
+
+    public void putOverride(UUID userId,String period,int creditLimit,java.time.OffsetDateTime expiresAt,
+            String reason,UUID adminId) {
+        jdbc.update("""
+                INSERT INTO ai.ai_quota_overrides(user_id,period,credit_limit,expires_at,reason,created_by,created_at)
+                VALUES (?,?,?,?,?,?,now())
+                ON CONFLICT(user_id,period) DO UPDATE SET credit_limit=excluded.credit_limit,
+                    expires_at=excluded.expires_at,reason=excluded.reason,
+                    created_by=excluded.created_by,created_at=now()
+                """,userId,period,creditLimit,expiresAt,reason,adminId);
+    }
+
+    public int deleteOverride(UUID userId,String period) {
+        return jdbc.update("DELETE FROM ai.ai_quota_overrides WHERE user_id=? AND period=?",userId,period);
+    }
+
+    public java.util.List<Map<String,Object>> adminUsage() {
+        return jdbc.query("""
+                SELECT operation,count(*)::int AS request_count,
+                       COALESCE(sum(credits),0)::int AS credits_used,
+                       count(*) FILTER (WHERE state='RELEASED')::int AS released_count
+                  FROM ai.ai_usage_ledger
+                 WHERE period_day>=current_date-29
+                 GROUP BY operation ORDER BY operation
+                """,(rs,row)->Map.<String,Object>of("operation",rs.getString("operation"),
+                "requestCount",rs.getInt("request_count"),"creditsUsed",rs.getInt("credits_used"),
+                "releasedCount",rs.getInt("released_count")));
+    }
+
     public QuotaSnapshot snapshot(UUID userId, String role) {
-        Map<String,Policy> policies=lockPolicies(role);
+        Map<String,Policy> policies=lockPolicies(role,userId);
         Policy daily=required(policies,"DAILY");
         Policy monthly=required(policies,"MONTHLY");
         LocalDate today=LocalDate.now(ZoneOffset.UTC);
@@ -92,7 +139,7 @@ public class AiQuotaStore {
         return new QuotaSnapshot(monthly.limit(),monthlyUsed,monthlyRemaining,reset,monthly.rate(),"MONTHLY");
     }
 
-    private Map<String,Policy> lockPolicies(String role) {
+    private Map<String,Policy> lockPolicies(String role,UUID userId) {
         var rows=jdbc.query("""
                 SELECT period,credit_limit,rate_limit_per_minute
                   FROM ai.ai_quota_policies
@@ -102,6 +149,14 @@ public class AiQuotaStore {
                 """,(rs,row)->Map.entry(rs.getString("period"),new Policy(rs.getInt("credit_limit"),rs.getInt("rate_limit_per_minute"))),role);
         Map<String,Policy> policies=new HashMap<>();
         rows.forEach(entry->policies.put(entry.getKey(),entry.getValue()));
+        var overrides=jdbc.query("""
+                SELECT period,credit_limit FROM ai.ai_quota_overrides
+                 WHERE user_id=? AND (expires_at IS NULL OR expires_at>now())
+                """,(rs,row)->Map.entry(rs.getString("period"),rs.getInt("credit_limit")),userId);
+        overrides.forEach(entry -> {
+            Policy base=policies.get(entry.getKey());
+            if(base!=null) policies.put(entry.getKey(),new Policy(entry.getValue(),base.rate()));
+        });
         return policies;
     }
 
