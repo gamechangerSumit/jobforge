@@ -93,8 +93,11 @@ public class InternalAiController {
             var last=page.items().get(page.items().size()-1);
             next=cursors.encode(last.createdAt(),last.id());
         }
-        return Map.of("data",data,"meta",Map.of("cursor",Map.of(
-                "next",next==null?"":next,"hasNext",page.hasNext(),"limit",limit)));
+        Map<String,Object> cursorMeta=new LinkedHashMap<>();
+        cursorMeta.put("next",next);
+        cursorMeta.put("hasNext",page.hasNext());
+        cursorMeta.put("limit",limit);
+        return Map.of("data",data,"meta",Map.of("cursor",cursorMeta));
     }
 
     @GetMapping("/requests/{id}")
