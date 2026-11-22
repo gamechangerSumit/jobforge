@@ -46,3 +46,21 @@ export interface AiUsage {
 export const generateJobDraft = (input: AiDraftInput, idempotencyKey: string) =>
   api.post<AiDraftResult>('/ai/job-drafts', input, { 'Idempotency-Key': idempotencyKey });
 export const getAiUsage = () => api.get<AiUsage>('/ai/usage/me');
+
+export interface AiQuotaPolicy {
+  role: 'JOB_SEEKER' | 'RECRUITER' | 'ADMIN';
+  period: 'DAILY' | 'MONTHLY';
+  creditLimit: number;
+  rateLimitPerMinute: number;
+  active: boolean;
+}
+export interface AiAdminUsage {
+  operation: string;
+  requestCount: number;
+  creditsUsed: number;
+  releasedCount: number;
+}
+export const getAiQuotaPolicies = () => api.get<AiQuotaPolicy[]>('/ai/admin/quota-policies');
+export const updateAiQuotaPolicy = (policy: AiQuotaPolicy) =>
+  api.put<AiQuotaPolicy[]>('/ai/admin/quota-policies', policy);
+export const getAiAdminUsage = () => api.get<AiAdminUsage[]>('/ai/admin/usage');
