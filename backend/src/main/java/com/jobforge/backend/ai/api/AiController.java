@@ -1,6 +1,9 @@
 package com.jobforge.backend.ai.api;
 
 import com.jobforge.backend.ai.app.AiGatewayService;
+import com.jobforge.backend.application.facade.ApplicationFacade;
+import com.jobforge.backend.job.facade.JobFacade;
+import com.jobforge.backend.job.facade.JobFacade.Viewer;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,15 +46,20 @@ public class AiController {
     private final SeekerDataFacade seekerData;
     private final SearchFacade search;
     private final ObjectMapper mapper;
+    private final ApplicationFacade applications;
+    private final JobFacade jobs;
 
     public AiController(AiGatewayService gateway, ProfileFacade profiles, CompanyAccessFacade companies,
-            SeekerDataFacade seekerData, SearchFacade search, ObjectMapper mapper) {
+            SeekerDataFacade seekerData, SearchFacade search, ObjectMapper mapper,
+            ApplicationFacade applications, JobFacade jobs) {
         this.gateway = gateway;
         this.profiles = profiles;
         this.companies = companies;
         this.seekerData = seekerData;
         this.search = search;
         this.mapper = mapper;
+        this.applications = applications;
+        this.jobs = jobs;
     }
 
     @PostMapping("/job-drafts")
@@ -180,6 +188,72 @@ public class AiController {
         ObjectNode request = trustedSeekerContext(caller.id());
         return payload(gateway.post("/internal/v1/ai/career-insights", request,
                 caller.id(), caller.role().name(), requestId, null));
+    }
+
+
+    @PostMapping("/recommendations/candidates")
+    @PreAuthorize("hasRole('RECRUITER')")
+    public Object recommendCandidates(@AuthenticationPrincipal AuthenticatedUser caller,
+            @RequestBody JsonNode request,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        if (!profiles.isRecruiterApproved(caller.id())) {
+            throw new ForbiddenException(com.jobforge.backend.shared.error.ErrorCode.RECRUITER_NOT_APPROVED,
+                    "Your recruiter account must be approved before using AI candidate recommendations.");
+        }
+        if (request == null || !request.path("jobId").isTextual()) {
+            throw ValidationFailedException.of("jobId", "NOT_NULL", "A job UUID is required.");
+        }
+        UUID jobId;
+        try {
+            jobId = UUID.fromString(request.path("jobId").asText());
+        } catch (IllegalArgumentException ex) {
+            throw ValidationFailedException.of("jobId", "PATTERN", "A valid job UUID is required.");
+        }
+        var membership = companies.membershipOf(caller.id())
+                .orElseThrow(() -> new ForbiddenException("Join or create a company before using AI recommendations."));
+        var job = jobs.getForApply(jobId).orElseThrow(() ->
+                new com.jobforge.backend.shared.error.ResourceNotFoundException("Job not found or not accepting applications."));
+        if (!membership.companyId().equals(job.companyId())) {
+            throw new ForbiddenException("You can only review candidates for your own company's jobs.");
+        }
+        var jobSummary = jobs.getSummaries(List.of(jobId), Viewer.ANONYMOUS).stream().findFirst()
+                .orElseThrow(() -> new com.jobforge.backend.shared.error.ResourceNotFoundException("Published job not found."));
+        var contexts = applications.contexts(applications.applicationIdsOfCompany(membership.companyId()));
+        List<Map<String, Object>> candidateContext = contexts.values().stream()
+                .filter(context -> jobId.equals(context.jobId()) && !context.closed())
+                .map(context -> seekerData.candidate(context.seekerUserId()).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .filter(candidate -> !"PRIVATE".equals(candidate.visibility()))
+                .collect(java.util.stream.Collectors.toMap(
+                        SeekerDataFacade.CandidateProfile::id, candidate -> candidate, (left, right) -> left,
+                        java.util.LinkedHashMap::new))
+                .values().stream().map(this::aiCandidateContext).toList();
+
+        Map<String, Object> jobContext = new LinkedHashMap<>();
+        jobContext.put("title", jobSummary.title());
+        jobContext.put("skills", jobSummary.skills() == null ? List.of() : jobSummary.skills());
+        putIfPresent(jobContext, "workMode", jobSummary.workMode());
+        putIfPresent(jobContext, "employmentType", jobSummary.employmentType());
+        putIfPresent(jobContext, "experienceLevel", jobSummary.experienceLevel());
+
+        ObjectNode trusted = mapper.createObjectNode();
+        trusted.set("context", mapper.valueToTree(Map.of("job", jobContext, "candidates", candidateContext)));
+        return payload(gateway.post("/internal/v1/ai/recommendations/candidates", trusted,
+                caller.id(), caller.role().name(), requestId, null));
+    }
+
+    /** Candidate context is built from the recruiter's own job applications and only non-private profiles. */
+    private Map<String, Object> aiCandidateContext(SeekerDataFacade.CandidateProfile candidate) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("profileId", candidate.id().toString());
+        putIfPresent(value, "headline", candidate.headline());
+        putIfPresent(value, "summary", candidate.summary());
+        putIfPresent(value, "currentTitle", candidate.currentTitle());
+        value.put("yearsExperience", candidate.yearsExperience());
+        value.put("profileCompleteness", candidate.completenessScore());
+        value.put("skills", candidate.skills() == null ? List.of()
+                : candidate.skills().stream().map(SeekerDataFacade.SkillView::skill).toList());
+        return value;
     }
 
     /**
