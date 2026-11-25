@@ -37,9 +37,9 @@ export default function CareerInsightsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [load]);
 
   return (
     <main className="mx-auto max-w-6xl space-y-7 px-4 py-10">
