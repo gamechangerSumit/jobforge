@@ -88,3 +88,19 @@ export interface CareerInsights {
 }
 export const getJobRecommendations = () => api.post<AiJobRecommendations>('/ai/recommendations/jobs');
 export const getCareerInsights = () => api.post<CareerInsights>('/ai/career-insights');
+
+export interface AiCandidateRecommendation {
+  profileId: string;
+  headline: string;
+  currentTitle: string;
+  matchScore: number;
+  matchedSkills: string[];
+  missingSkills: string[];
+  reason: string;
+}
+export interface AiCandidateRecommendations {
+  candidates: AiCandidateRecommendation[];
+  meta: { provider: string };
+}
+export const getCandidateRecommendations = (jobId: string) =>
+  api.post<AiCandidateRecommendations>('/ai/recommendations/candidates', { jobId });
