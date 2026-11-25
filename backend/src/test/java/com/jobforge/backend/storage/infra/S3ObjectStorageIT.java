@@ -24,7 +24,7 @@ class S3ObjectStorageIT {
     private static final String SECRET_KEY = "jobforge-test-secret-123456";
 
     @Container
-    static final GenericContainer<?> MINIO = new GenericContainer<>(DockerImageName.parse("quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z"))
+    static final GenericContainer<?> MINIO = new GenericContainer<>(DockerImageName.parse("pgsty/silo:RELEASE.2026-11-12T00-00-00Z"))
             .withEnv("MINIO_ROOT_USER", ACCESS_KEY)
             .withEnv("MINIO_ROOT_PASSWORD", SECRET_KEY)
             .withExposedPorts(9000)
