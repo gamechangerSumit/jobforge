@@ -1,3 +1,10 @@
+springdoc:
+  api-docs:
+    enabled: ${OPENAPI_ENABLED:false}
+  swagger-ui:
+    enabled: false
+  packages-to-scan: com.jobforge.backend
+
 spring:
   application:
     name: jobforge-backend
