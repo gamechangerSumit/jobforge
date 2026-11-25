@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';\nimport Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { ApiClientError } from '@/lib/api/client';
 import {
