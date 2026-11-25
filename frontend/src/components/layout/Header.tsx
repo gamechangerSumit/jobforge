@@ -11,7 +11,7 @@ function linksFor(role?: string): NavLink[] {
   const common: NavLink[] = [{ href: '/jobs', label: 'Find jobs' }];
   if (role === 'JOB_SEEKER') return [...common,
     { href: '/applications', label: 'Applications' }, { href: '/saved-jobs', label: 'Saved jobs' },
-    { href: '/interviews', label: 'Interviews' }, { href: '/community', label: 'Community' },
+    { href: '/interviews', label: 'Interviews' }, { href: '/career-insights', label: 'Career insights' }, { href: '/community', label: 'Community' },
     { href: '/profile', label: 'My profile' }];
   if (role === 'RECRUITER') return [...common,
     { href: '/recruiter/dashboard', label: 'Overview' }, { href: '/recruiter/ai-studio', label: 'AI Job Studio' }, { href: '/recruiter/jobs', label: 'My jobs' },
