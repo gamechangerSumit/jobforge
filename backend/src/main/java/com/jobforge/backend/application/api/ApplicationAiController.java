@@ -3,6 +3,7 @@ package com.jobforge.backend.application.api;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jobforge.backend.ai.facade.AiFacade;
+import com.jobforge.backend.ai.facade.AiContextTextSanitizer;
 import com.jobforge.backend.application.facade.ApplicationFacade;
 import com.jobforge.backend.company.facade.CompanyAccessFacade;
 import com.jobforge.backend.job.facade.JobFacade;
@@ -12,6 +13,7 @@ import com.jobforge.backend.profile.facade.SeekerDataFacade;
 import com.jobforge.backend.shared.error.ForbiddenException;
 import com.jobforge.backend.shared.error.ResourceNotFoundException;
 import com.jobforge.backend.shared.security.AuthenticatedUser;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,16 +68,16 @@ public class ApplicationAiController {
         var jobSummary = jobs.getSummaries(List.of(jobId), Viewer.ANONYMOUS).stream().findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Published job not found."));
 
-        List<Map<String, Object>> candidateContext = applications.contexts(applications.applicationIdsOfJob(jobId))
-                .values().stream()
-                .filter(context -> jobId.equals(context.jobId()) && !context.closed())
-                .map(context -> {
-                    var candidate = seekers.candidate(context.seekerUserId()).orElse(null);
-                    return candidate == null || "PRIVATE".equals(candidate.visibility())
-                            ? null : candidateContext(candidate, context.applicationId());
-                })
-                .filter(java.util.Objects::nonNull)
-                .toList();
+        Map<String, UUID> applicationByRef = new LinkedHashMap<>();
+        List<Map<String, Object>> candidateContext = new ArrayList<>();
+        for (var context : applications.contexts(applications.applicationIdsOfJob(jobId)).values()) {
+            if (!jobId.equals(context.jobId()) || context.closed()) continue;
+            var candidate = seekers.candidate(context.seekerUserId()).orElse(null);
+            if (candidate == null || "PRIVATE".equals(candidate.visibility())) continue;
+            String candidateRef = "candidate-" + (candidateContext.size() + 1);
+            candidateContext.add(candidateContext(candidate, candidateRef));
+            applicationByRef.put(candidateRef, context.applicationId());
+        }
 
         Map<String, Object> jobContext = new LinkedHashMap<>();
         jobContext.put("title", jobSummary.title());
@@ -87,12 +89,33 @@ public class ApplicationAiController {
         ObjectNode trusted = mapper.createObjectNode();
         trusted.set("context", mapper.valueToTree(Map.of("job", jobContext, "candidates", candidateContext)));
         Map<?, ?> envelope = ai.recommendCandidates(trusted, caller.id(), caller.role().name(), requestId);
-        Object data = envelope == null ? null : envelope.get("data");
-        return data == null ? Map.of() : data;
+        Object rawData = envelope == null ? null : envelope.get("data");
+        if (!(rawData instanceof Map<?, ?> source)) return Map.of();
+        Map<String, Object> data = new LinkedHashMap<>();
+        source.forEach((key, value) -> {
+            if (key instanceof String name) data.put(name, value);
+        });
+        Object rawCandidates = data.get("candidates");
+        if (rawCandidates instanceof List<?> ranked) {
+            List<Map<String, Object>> linked = new ArrayList<>();
+            for (Object item : ranked) {
+                if (!(item instanceof Map<?, ?> candidate)) continue;
+                UUID applicationId = applicationByRef.get(String.valueOf(candidate.get("candidateRef")));
+                if (applicationId == null) continue;
+                Map<String, Object> result = new LinkedHashMap<>();
+                candidate.forEach((key, value) -> {
+                    if (key instanceof String name && !"candidateRef".equals(name)) result.put(name, value);
+                });
+                result.put("applicationId", applicationId.toString());
+                linked.add(result);
+            }
+            data.put("candidates", linked);
+        }
+        return data;
     }
 
     /** Candidate context is limited to recruiter-visible professional fields; contact and salary data are excluded. */
-    private static Map<String, Object> candidateContext(SeekerDataFacade.CandidateProfile candidate, UUID applicationId) {
+    private static Map<String, Object> candidateContext(SeekerDataFacade.CandidateProfile candidate, String candidateRef) {
         Map<String, Object> value = new LinkedHashMap<>();
         value.put("profileId", candidate.id().toString());
         value.put("applicationId", applicationId.toString());
@@ -107,6 +130,6 @@ public class ApplicationAiController {
     }
 
     private static void putIfPresent(Map<String, Object> target, String key, Object value) {
-        if (value != null && (!(value instanceof String text) || !text.isBlank())) target.put(key, value);
+        if (value instanceof String text) {\n            String safe = AiContextTextSanitizer.sanitize(text);\n            if (!safe.isBlank()) target.put(key, safe);\n        } else if (value != null) target.put(key, value);
     }
 }
