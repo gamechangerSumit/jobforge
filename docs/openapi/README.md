@@ -5,7 +5,7 @@ The canonical runtime document is exported from the running backend at `/v3/api-
 Run the stack with `OPENAPI_ENABLED=true`, then execute:
 
 ```bash
-./scripts/export-openapi.sh
+bash scripts/export-openapi.sh
 cd frontend
 pnpm install --no-frozen-lockfile
 pnpm gen:api
