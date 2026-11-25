@@ -87,7 +87,7 @@ export default function AiCandidatesPage() {
             <p className="text-sm leading-6 text-slate-600">{candidate.reason}</p>
             {!!candidate.matchedSkills.length && <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Matching skills</p><div className="mt-2 flex flex-wrap gap-2">{candidate.matchedSkills.map((skill) => <span key={skill} className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">{skill}</span>)}</div></div>}
             {!!candidate.missingSkills.length && <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Other required skills</p><div className="mt-2 flex flex-wrap gap-2">{candidate.missingSkills.map((skill) => <span key={skill} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">{skill}</span>)}</div></div>}
-            <p className="text-xs text-slate-400">Profile ID: {candidate.profileId}</p>
+            <Link href={`/recruiter/applications/${candidate.applicationId}`} className="inline-flex text-sm font-bold text-violet-700 hover:underline">Review application →</Link>
           </Card>)}
         </div>
       </section>}
