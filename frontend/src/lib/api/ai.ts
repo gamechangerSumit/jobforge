@@ -91,6 +91,7 @@ export const getCareerInsights = () => api.post<CareerInsights>('/ai/career-insi
 
 export interface AiCandidateRecommendation {
   profileId: string;
+  applicationId: string;
   headline: string;
   currentTitle: string;
   matchScore: number;
