@@ -68,7 +68,16 @@ public class JobSearchService implements com.jobforge.backend.search.facade.Sear
                 skills == null ? List.of() : skills.stream().filter(java.util.Objects::nonNull)
                         .map(String::trim).filter(value -> !value.isBlank()).distinct().limit(20).toList(),
                 null, null, com.jobforge.backend.search.domain.JobSearchSort.RELEVANCE, 0, boundedLimit);
-        return searchProvider.search(filter).items();
+        return searchProvider.search(filter).items().stream().map(job ->
+                new com.jobforge.backend.search.facade.SearchFacade.RecommendationJob(
+                        job.id().toString(), job.title(),
+                        job.company() == null ? null : job.company().name(),
+                        job.workMode(), job.employmentType(), job.experienceLevel(),
+                        job.skills() == null ? List.of() : job.skills(),
+                        job.location() == null ? null : job.location().city(),
+                        job.location() == null ? null : job.location().state(),
+                        job.location() == null ? null : job.location().country()))
+                .toList();
     }
 
     private List<JobSearchResult> withFlags(List<JobSearchResult> items, UUID seekerUserId) {
