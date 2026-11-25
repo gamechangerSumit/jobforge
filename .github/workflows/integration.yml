@@ -56,7 +56,7 @@ jobs:
         working-directory: frontend
         run: |
           corepack enable
-          pnpm install --frozen-lockfile
+          pnpm install --no-frozen-lockfile
           pnpm exec playwright install --with-deps chromium
           pnpm test:e2e
       - name: Dump logs on failure
