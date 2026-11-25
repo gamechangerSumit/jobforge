@@ -328,8 +328,7 @@ public class LocalTemplateProvider implements AIProvider {
                 int score = requiredSkills.isEmpty() ? 35
                         : (int) Math.round(35 + 65.0 * matched.size() / requiredSkills.size());
                 java.util.Map<String, Object> item = new java.util.LinkedHashMap<>();
-                item.put("profileId", candidate.path("profileId").asText(""));
-                item.put("applicationId", candidate.path("applicationId").asText(""));
+                item.put("candidateRef", candidate.path("candidateRef").asText(""));
                 item.put("headline", candidate.path("headline").asText(""));
                 item.put("currentTitle", candidate.path("currentTitle").asText(""));
                 item.put("matchScore", score);
