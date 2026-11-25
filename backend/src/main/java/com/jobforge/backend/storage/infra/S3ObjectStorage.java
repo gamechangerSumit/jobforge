@@ -39,10 +39,12 @@ public class S3ObjectStorage implements ObjectStorage {
             if (missing.statusCode() != 404) {
                 throw missing;
             }
-            client.createBucket(CreateBucketRequest.builder().bucket(bucket)
-                    .createBucketConfiguration(CreateBucketConfiguration.builder()
-                            .locationConstraint(region).build())
-                    .build());
+            var request = CreateBucketRequest.builder().bucket(bucket);
+            if (!"us-east-1".equalsIgnoreCase(region)) {
+                request.createBucketConfiguration(CreateBucketConfiguration.builder()
+                        .locationConstraint(region).build());
+            }
+            client.createBucket(request.build());
         }
     }
 
