@@ -325,7 +325,7 @@ services:
     networks: [jobforge-net]
 
   # ---------------------------------------------------------------------------
-  # profile "storage": MinIO (S3 API 9000, console 9001). The backend still uses local disk until an S3 adapter exists.
+  # profile "storage": MinIO (S3 API 9000, console 9001). Enable STORAGE_PROVIDER=s3 for the backend to use this endpoint.
   # ---------------------------------------------------------------------------
   minio:
     profiles: ["storage"]
