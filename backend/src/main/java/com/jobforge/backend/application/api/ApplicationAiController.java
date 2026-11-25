@@ -80,8 +80,9 @@ public class ApplicationAiController {
         }
 
         Map<String, Object> jobContext = new LinkedHashMap<>();
-        jobContext.put("title", jobSummary.title());
-        jobContext.put("skills", jobSummary.skills() == null ? List.of() : jobSummary.skills());
+        jobContext.put("title", AiContextTextSanitizer.sanitize(jobSummary.title()));
+        jobContext.put("skills", jobSummary.skills() == null ? List.of()
+                : jobSummary.skills().stream().map(AiContextTextSanitizer::sanitize).toList());
         putIfPresent(jobContext, "workMode", jobSummary.workMode());
         putIfPresent(jobContext, "employmentType", jobSummary.employmentType());
         putIfPresent(jobContext, "experienceLevel", jobSummary.experienceLevel());
@@ -117,19 +118,22 @@ public class ApplicationAiController {
     /** Candidate context is limited to recruiter-visible professional fields; contact and salary data are excluded. */
     private static Map<String, Object> candidateContext(SeekerDataFacade.CandidateProfile candidate, String candidateRef) {
         Map<String, Object> value = new LinkedHashMap<>();
-        value.put("profileId", candidate.id().toString());
-        value.put("applicationId", applicationId.toString());
+        value.put("candidateRef", candidateRef);
         putIfPresent(value, "headline", candidate.headline());
         putIfPresent(value, "summary", candidate.summary());
         putIfPresent(value, "currentTitle", candidate.currentTitle());
         value.put("yearsExperience", candidate.yearsExperience());
         value.put("profileCompleteness", candidate.completenessScore());
         value.put("skills", candidate.skills() == null ? List.of()
-                : candidate.skills().stream().map(SeekerDataFacade.SkillView::skill).toList());
+                : candidate.skills().stream().map(SeekerDataFacade.SkillView::skill)
+                        .map(AiContextTextSanitizer::sanitize).toList());
         return value;
     }
 
     private static void putIfPresent(Map<String, Object> target, String key, Object value) {
-        if (value instanceof String text) {\n            String safe = AiContextTextSanitizer.sanitize(text);\n            if (!safe.isBlank()) target.put(key, safe);\n        } else if (value != null) target.put(key, value);
+        if (value instanceof String text) {
+            String safe = AiContextTextSanitizer.sanitize(text);
+            if (!safe.isBlank()) target.put(key, safe);
+        } else if (value != null) target.put(key, value);
     }
 }
