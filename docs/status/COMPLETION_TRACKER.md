@@ -27,10 +27,10 @@ The S3 adapter and Playwright workflow changes were committed after that verifie
 
 ## Remaining before production-ready
 
-1. **Personalized AI context:** assemble seeker profile, skills, preferences, application history and job/candidate context through module facades; add consent, minimization, freshness and authorization tests before exposing recommendations or career insights.
-2. **OpenAPI:** add the springdoc ADR/dependency, generate and commit `docs/openapi/openapi.v1.json`, generate frontend API types, and enforce a CI drift check. Do not hand-author a snapshot and call it generated.
+1. **AI context verification:** add integration tests for seeker context minimization and recruiter candidate authorization/visibility boundaries; review consent, freshness and data retention. Context design and endpoints are implemented and documented in `docs/AI_CONTEXT.md`.
+2. **OpenAPI baseline:** retrieve the generated `openapi-contract` CI artifact, review and commit `docs/openapi/openapi.v1.json` plus `frontend/src/types/generated-api.ts`, then enable a CI drift check. Do not hand-author a snapshot and call it generated.
 3. **Storage validation:** run backend Maven verification with the AWS SDK dependency; test S3 adapter against MinIO in integration CI; verify bucket provisioning, object lifecycle and upload/download authorization. The local adapter remains the default.
-4. **Browser quality:** run the new Playwright workflow, fix selectors/flows, and add axe-based accessibility checks for the main seeker, recruiter and admin journeys.
+4. **Browser quality:** run the new Playwright workflow, fix selectors/flows, and extend axe accessibility checks from public job discovery to seeker, recruiter and admin journeys.
 5. **Production review:** verify secure cookies, restrictive CORS, proxy trust, Redis fail-open policy, upload malware-scanning hook, retention/account deletion policy, secret rotation and deployment rollback.
 6. **Release process:** update status docs after CI passes, convert PR #10 from draft only after review, then merge using the repository's required checks.
 
