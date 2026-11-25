@@ -9,7 +9,6 @@ import com.jobforge.backend.company.facade.CompanyAccessFacade;
 import com.jobforge.backend.profile.facade.ProfileFacade;
 import com.jobforge.backend.profile.facade.SeekerDataFacade;
 import com.jobforge.backend.search.facade.SearchFacade;
-import com.jobforge.backend.search.domain.JobSearchResult;
 import java.util.LinkedHashMap;
 import java.util.List;
 import com.jobforge.backend.shared.api.CursorMeta;
@@ -195,7 +194,7 @@ public class AiController {
                         .map(String::trim).filter(value -> !value.isBlank()).distinct().limit(20).toList();
         String city = profile.location() == null ? null : profile.location().city();
         String country = profile.location() == null ? null : profile.location().country();
-        List<JobSearchResult> matches = search.recommendForSeeker(skills, city, country, 10);
+        List<SearchFacade.RecommendationJob> matches = search.recommendForSeeker(skills, city, country, 10);
 
         Map<String, Object> profileContext = new LinkedHashMap<>();
         putIfPresent(profileContext, "headline", profile.headline());
@@ -224,22 +223,20 @@ public class AiController {
         return request;
     }
 
-    private Map<String, Object> aiJobContext(JobSearchResult job) {
+    private Map<String, Object> aiJobContext(SearchFacade.RecommendationJob job) {
         Map<String, Object> value = new LinkedHashMap<>();
-        value.put("id", job.id().toString());
+        value.put("id", job.id());
         value.put("title", job.title());
         value.put("skills", job.skills() == null ? List.of() : job.skills());
         putIfPresent(value, "workMode", job.workMode());
         putIfPresent(value, "employmentType", job.employmentType());
         putIfPresent(value, "experienceLevel", job.experienceLevel());
-        if (job.company() != null) value.put("companyName", job.company().name());
-        if (job.location() != null) {
-            Map<String, Object> location = new LinkedHashMap<>();
-            putIfPresent(location, "city", job.location().city());
-            putIfPresent(location, "state", job.location().state());
-            putIfPresent(location, "country", job.location().country());
-            value.put("location", location);
-        }
+        putIfPresent(value, "companyName", job.companyName());
+        Map<String, Object> location = new LinkedHashMap<>();
+        putIfPresent(location, "city", job.city());
+        putIfPresent(location, "state", job.state());
+        putIfPresent(location, "country", job.country());
+        if (!location.isEmpty()) value.put("location", location);
         return value;
     }
 
