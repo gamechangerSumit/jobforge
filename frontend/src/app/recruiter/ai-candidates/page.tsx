@@ -79,7 +79,7 @@ export default function AiCandidatesPage() {
           <div><h2 className="text-xl font-black text-slate-950">Matching applicants</h2><p className="mt-1 text-sm text-slate-600">{candidates.length} recruiter-visible profiles matched against this job&apos;s skills.</p></div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {candidates.map((candidate) => <Card key={candidate.profileId} className="space-y-3">
+          {candidates.map((candidate) => <Card key={candidate.applicationId} className="space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div><h3 className="font-bold text-slate-950">{candidate.headline || candidate.currentTitle || 'Applicant profile'}</h3><p className="mt-1 text-sm text-slate-500">{candidate.currentTitle || 'Title not provided'}</p></div>
               <span className="shrink-0 rounded-full bg-violet-50 px-3 py-1 text-sm font-bold text-violet-700">{candidate.matchScore}% match</span>
