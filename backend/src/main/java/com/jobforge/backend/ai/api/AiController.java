@@ -221,13 +221,13 @@ public class AiController {
         var contexts = applications.contexts(applications.applicationIdsOfCompany(membership.companyId()));
         List<Map<String, Object>> candidateContext = contexts.values().stream()
                 .filter(context -> jobId.equals(context.jobId()) && !context.closed())
-                .map(context -> seekerData.candidate(context.seekerUserId()).orElse(null))
+                .map(context -> {
+                    var candidate = seekerData.candidate(context.seekerUserId()).orElse(null);
+                    return candidate == null || "PRIVATE".equals(candidate.visibility())
+                            ? null : aiCandidateContext(candidate, context.applicationId());
+                })
                 .filter(java.util.Objects::nonNull)
-                .filter(candidate -> !"PRIVATE".equals(candidate.visibility()))
-                .collect(java.util.stream.Collectors.toMap(
-                        SeekerDataFacade.CandidateProfile::id, candidate -> candidate, (left, right) -> left,
-                        java.util.LinkedHashMap::new))
-                .values().stream().map(this::aiCandidateContext).toList();
+                .toList();
 
         Map<String, Object> jobContext = new LinkedHashMap<>();
         jobContext.put("title", jobSummary.title());
@@ -243,9 +243,10 @@ public class AiController {
     }
 
     /** Candidate context is built from the recruiter's own job applications and only non-private profiles. */
-    private Map<String, Object> aiCandidateContext(SeekerDataFacade.CandidateProfile candidate) {
+    private Map<String, Object> aiCandidateContext(SeekerDataFacade.CandidateProfile candidate, UUID applicationId) {
         Map<String, Object> value = new LinkedHashMap<>();
         value.put("profileId", candidate.id().toString());
+        value.put("applicationId", applicationId.toString());
         putIfPresent(value, "headline", candidate.headline());
         putIfPresent(value, "summary", candidate.summary());
         putIfPresent(value, "currentTitle", candidate.currentTitle());
