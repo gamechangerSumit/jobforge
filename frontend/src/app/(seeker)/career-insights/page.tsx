@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';\nimport Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { ApiClientError } from '@/lib/api/client';
 import {
@@ -19,7 +19,7 @@ export default function CareerInsightsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -89,7 +89,7 @@ export default function CareerInsightsPage() {
         <section className="space-y-4">
           <div className="flex items-end justify-between gap-3">
             <div><h2 className="text-xl font-black text-slate-950">Jobs that fit your skills</h2><p className="mt-1 text-sm text-slate-600">Ranked against your profile skills and location.</p></div>
-            <a href="/jobs" className="text-sm font-bold text-violet-700 hover:underline">Browse all jobs</a>
+            <Link href="/jobs" className="text-sm font-bold text-violet-700 hover:underline">Browse all jobs</Link>
           </div>
           {recommendations.length ? <div className="grid gap-4 md:grid-cols-2">
             {recommendations.map((job) => <Card key={job.jobId} className="space-y-3">
@@ -100,7 +100,7 @@ export default function CareerInsightsPage() {
               <p className="text-sm leading-6 text-slate-600">{job.reason}</p>
               {!!job.matchedSkills.length && <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Matching skills</p><div className="mt-2 flex flex-wrap gap-2">{job.matchedSkills.map((skill) => <span key={skill} className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">{skill}</span>)}</div></div>}
               {!!job.missingSkills.length && <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Skills to strengthen</p><div className="mt-2 flex flex-wrap gap-2">{job.missingSkills.map((skill) => <span key={skill} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">{skill}</span>)}</div></div>}
-              <a href={`/jobs/${job.jobId}`} className="inline-flex text-sm font-bold text-violet-700 hover:underline">View job →</a>
+              <Link href={`/jobs/${job.jobId}`} className="inline-flex text-sm font-bold text-violet-700 hover:underline">View job →</Link>
             </Card>)}
           </div> : <Card><p className="font-semibold text-slate-800">No matching public jobs found yet.</p><p className="mt-1 text-sm text-slate-600">Add skills and a preferred city to your profile, then refresh your recommendations.</p></Card>}
         </section>
