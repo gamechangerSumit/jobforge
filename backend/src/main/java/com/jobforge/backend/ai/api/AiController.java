@@ -246,7 +246,7 @@ public class AiController {
     private static void putIfPresent(Map<String, Object> target, String key, Object value) {
         if (value != null && (!(value instanceof String text) || !text.isBlank())) target.put(key, value);
     }
-\n    private static Object payload(Map<?, ?> envelope) {
+    private static Object payload(Map<?, ?> envelope) {
         Object data = envelope == null ? null : envelope.get("data");
         return data == null ? Map.of() : data;
     }
