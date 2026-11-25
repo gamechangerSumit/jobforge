@@ -17,7 +17,7 @@ JobForge builds AI context in the backend after authenticating the caller. Brows
 - Job must be currently accepting applications and publicly visible.
 - Backend fetches only applications to that specific job, excludes terminal/closed applications, and loads profiles through `SeekerDataFacade`.
 - Profiles with `PRIVATE` visibility are excluded. `PUBLIC` and `RECRUITERS_ONLY` profiles can be included for the owning recruiter.
-- Context contains profile id, application id, professional headline/summary, current title, experience, completeness and skill names.
+- Context contains an ephemeral candidate reference, professional headline/summary, current title, experience, completeness and skill names. Profile and application UUIDs stay in the backend and are joined to model results only after the AI call.
 - Phone, expected salary, email, resume content, private profile content and account secrets are excluded.
 - The AI service does not persist the trusted context. The result carries the application id so the recruiter can review the original application.
 
