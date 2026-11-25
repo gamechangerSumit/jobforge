@@ -244,7 +244,10 @@ public class AiController {
     }
 
     private static void putIfPresent(Map<String, Object> target, String key, Object value) {
-        if (value instanceof String text) {\n            String safe = AiContextTextSanitizer.sanitize(text);\n            if (!safe.isBlank()) target.put(key, safe);\n        } else if (value != null) target.put(key, value);
+        if (value instanceof String text) {
+            String safe = AiContextTextSanitizer.sanitize(text);
+            if (!safe.isBlank()) target.put(key, safe);
+        } else if (value != null) target.put(key, value);
     }
     private static Object payload(Map<?, ?> envelope) {
         Object data = envelope == null ? null : envelope.get("data");
