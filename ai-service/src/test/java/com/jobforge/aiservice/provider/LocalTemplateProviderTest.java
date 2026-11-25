@@ -55,7 +55,7 @@ class LocalTemplateProviderTest {
                 {"context":{
                   "job":{"title":"Platform Engineer","skills":["Linux","Docker","Kubernetes"]},
                   "candidates":[
-                    {"profileId":"p1","applicationId":"a1","headline":"DevOps Engineer","skills":["Linux","Docker","Kubernetes"]},
+                    {"candidateRef":"candidate-1","headline":"DevOps Engineer","skills":["Linux","Docker","Kubernetes"]},
                     {"profileId":"p2","headline":"Java Developer","skills":["Java","Spring"]}
                   ]
                 }}
@@ -63,8 +63,7 @@ class LocalTemplateProviderTest {
         var result = provider.generate(new AIProvider.ProviderRequest("CANDIDATE_RECOMMENDATION", input, "trace"));
         JsonNode output = mapper.readTree(result.output());
         assertEquals(2, output.path("candidates").size());
-        assertEquals("p1", output.path("candidates").get(0).path("profileId").asText());
-        assertEquals("a1", output.path("candidates").get(0).path("applicationId").asText());
+        assertEquals("candidate-1", output.path("candidates").get(0).path("candidateRef").asText());
         assertEquals(100, output.path("candidates").get(0).path("matchScore").asInt());
     }
 
