@@ -76,7 +76,7 @@ export default function AiCandidatesPage() {
       {loading && <div className="h-40 animate-pulse rounded-2xl bg-slate-100" />}
       {!loading && candidates.length > 0 && <section className="space-y-4">
         <div className="flex items-end justify-between gap-3">
-          <div><h2 className="text-xl font-black text-slate-950">Matching applicants</h2><p className="mt-1 text-sm text-slate-600">{candidates.length} recruiter-visible profiles matched against this job's skills.</p></div>
+          <div><h2 className="text-xl font-black text-slate-950">Matching applicants</h2><p className="mt-1 text-sm text-slate-600">{candidates.length} recruiter-visible profiles matched against this job&apos;s skills.</p></div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           {candidates.map((candidate) => <Card key={candidate.profileId} className="space-y-3">
