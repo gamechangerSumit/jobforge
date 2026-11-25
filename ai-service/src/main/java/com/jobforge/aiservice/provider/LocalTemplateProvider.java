@@ -314,11 +314,35 @@ public class LocalTemplateProvider implements AIProvider {
     }
 
     private ProviderResult recommendCandidates(JsonNode input) throws Exception {
-        return new ProviderResult(
-                objectMapper.writeValueAsString(java.util.Map.of("candidates", List.of())),
-                0,
-                0
-        );
+        JsonNode context = input.path("context");
+        java.util.Set<String> requiredSkills = normalizedSkills(context.path("job").path("skills"));
+        List<java.util.Map<String, Object>> ranked = new ArrayList<>();
+        JsonNode candidates = context.path("candidates");
+        if (candidates.isArray()) {
+            candidates.forEach(candidate -> {
+                List<String> skills = textValues(candidate.path("skills"));
+                List<String> matched = skills.stream().filter(skill -> requiredSkills.contains(normalize(skill)))
+                        .distinct().toList();
+                List<String> missing = requiredSkills.stream().filter(skill ->
+                        skills.stream().noneMatch(value -> normalize(value).equals(skill))).toList();
+                int score = requiredSkills.isEmpty() ? 35
+                        : (int) Math.round(35 + 65.0 * matched.size() / requiredSkills.size());
+                java.util.Map<String, Object> item = new java.util.LinkedHashMap<>();
+                item.put("profileId", candidate.path("profileId").asText(""));
+                item.put("headline", candidate.path("headline").asText(""));
+                item.put("currentTitle", candidate.path("currentTitle").asText(""));
+                item.put("matchScore", score);
+                item.put("matchedSkills", matched);
+                item.put("missingSkills", missing);
+                item.put("reason", matched.isEmpty()
+                        ? "Review this applicant's experience and profile manually against the role."
+                        : "Applicant profile lists " + String.join(", ", matched) + " from the role's skills.");
+                ranked.add(item);
+            });
+        }
+        ranked.sort((a, b) -> Integer.compare((Integer) b.get("matchScore"), (Integer) a.get("matchScore")));
+        return new ProviderResult(objectMapper.writeValueAsString(java.util.Map.of(
+                "candidates", ranked.stream().limit(50).toList())), 0, 0);
     }
 
     private ProviderResult careerInsights(JsonNode input) throws Exception {
