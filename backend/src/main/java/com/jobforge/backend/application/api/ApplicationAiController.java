@@ -60,6 +60,10 @@ public class ApplicationAiController {
         }
         var membership = companies.membershipOf(caller.id())
                 .orElseThrow(() -> new ForbiddenException("Join or create a company before using AI recommendations."));
+        if (!companies.isVerified(membership.companyId())) {
+            throw new ForbiddenException(com.jobforge.backend.shared.error.ErrorCode.COMPANY_NOT_VERIFIED,
+                    "Your company must be verified before using AI candidate recommendations.");
+        }
         var job = jobs.getForApply(jobId).orElseThrow(() ->
                 new ResourceNotFoundException("Job not found or not accepting applications."));
         if (!membership.companyId().equals(job.companyId())) {
