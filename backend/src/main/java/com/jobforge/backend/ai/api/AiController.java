@@ -1,6 +1,7 @@
 package com.jobforge.backend.ai.api;
 
 import com.jobforge.backend.ai.app.AiGatewayService;
+import com.jobforge.backend.ai.facade.AiContextTextSanitizer;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -192,6 +193,7 @@ public class AiController {
                 ValidationFailedException.of("profile", "NOT_FOUND", "Complete your seeker profile before using career AI."));
         List<String> skills = profile.skills() == null ? List.of()
                 : profile.skills().stream().map(SeekerDataFacade.SkillView::skill).filter(java.util.Objects::nonNull)
+                        .map(AiContextTextSanitizer::sanitize)
                         .map(String::trim).filter(value -> !value.isBlank()).distinct().limit(20).toList();
         String city = profile.location() == null ? null : profile.location().city();
         String country = profile.location() == null ? null : profile.location().country();
@@ -206,7 +208,7 @@ public class AiController {
         profileContext.put("profileCompleteness", profile.completenessScore());
         profileContext.put("skills", skills);
         profileContext.put("skillDetails", profile.skills() == null ? List.of() : profile.skills().stream()
-                .map(skill -> Map.of("name", skill.skill(), "proficiency",
+                .map(skill -> Map.of("name", AiContextTextSanitizer.sanitize(skill.skill()), "proficiency",
                         skill.proficiency() == null ? "UNSPECIFIED" : skill.proficiency(),
                         "years", skill.years() == null ? 0 : skill.years()))
                 .toList());
@@ -227,8 +229,8 @@ public class AiController {
     private Map<String, Object> aiJobContext(SearchFacade.RecommendationJob job) {
         Map<String, Object> value = new LinkedHashMap<>();
         value.put("id", job.id());
-        value.put("title", job.title());
-        value.put("skills", job.skills() == null ? List.of() : job.skills());
+        value.put("title", AiContextTextSanitizer.sanitize(job.title()));
+        value.put("skills", job.skills() == null ? List.of() : job.skills().stream().map(AiContextTextSanitizer::sanitize).toList());
         putIfPresent(value, "workMode", job.workMode());
         putIfPresent(value, "employmentType", job.employmentType());
         putIfPresent(value, "experienceLevel", job.experienceLevel());
@@ -242,7 +244,7 @@ public class AiController {
     }
 
     private static void putIfPresent(Map<String, Object> target, String key, Object value) {
-        if (value != null && (!(value instanceof String text) || !text.isBlank())) target.put(key, value);
+        if (value instanceof String text) {\n            String safe = AiContextTextSanitizer.sanitize(text);\n            if (!safe.isBlank()) target.put(key, safe);\n        } else if (value != null) target.put(key, value);
     }
     private static Object payload(Map<?, ?> envelope) {
         Object data = envelope == null ? null : envelope.get("data");
