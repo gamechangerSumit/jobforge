@@ -61,7 +61,7 @@ public class JobSearchService implements com.jobforge.backend.search.facade.Sear
 
     @Override
     @Transactional(readOnly = true)
-    public List<JobSearchResult> recommendForSeeker(List<String> skills, String city, String country, int limit) {
+    public List<com.jobforge.backend.search.facade.SearchFacade.RecommendationJob> recommendForSeeker(List<String> skills, String city, String country, int limit) {
         int boundedLimit = Math.max(1, Math.min(limit, 20));
         JobSearchFilter filter = new JobSearchFilter(
                 null, city, country, null, null, null, null, null, null,
