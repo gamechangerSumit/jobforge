@@ -90,7 +90,6 @@ export const getJobRecommendations = () => api.post<AiJobRecommendations>('/ai/r
 export const getCareerInsights = () => api.post<CareerInsights>('/ai/career-insights');
 
 export interface AiCandidateRecommendation {
-  profileId: string;
   applicationId: string;
   headline: string;
   currentTitle: string;
