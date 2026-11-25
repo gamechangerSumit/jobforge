@@ -66,3 +66,25 @@ export const getAiQuotaPolicies = () => api.get<AiQuotaPolicy[]>('/ai/admin/quot
 export const updateAiQuotaPolicy = (policy: AiQuotaPolicy) =>
   api.put<AiQuotaPolicy[]>('/ai/admin/quota-policies', policy);
 export const getAiAdminUsage = () => api.get<AiAdminUsage[]>('/ai/admin/usage');
+
+export interface AiJobRecommendation {
+  jobId: string;
+  title: string;
+  companyName: string;
+  matchScore: number;
+  matchedSkills: string[];
+  missingSkills: string[];
+  reason: string;
+}
+export interface AiJobRecommendations {
+  recommendations: AiJobRecommendation[];
+  meta: { provider: string };
+}
+export interface CareerInsights {
+  profileStrength: { score: number; suggestions: string[] };
+  skillGaps: Array<{ skill: string; jobsMentioningSkill: number }>;
+  marketSnapshot: { topSkills: Array<{ skill: string; jobCount: number }>; sampledJobs: number };
+  nextSteps: string[];
+}
+export const getJobRecommendations = () => api.post<AiJobRecommendations>('/ai/recommendations/jobs');
+export const getCareerInsights = () => api.post<CareerInsights>('/ai/career-insights');
