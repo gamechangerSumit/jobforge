@@ -63,7 +63,8 @@ class LocalTemplateProviderTest {
         var result = provider.generate(new AIProvider.ProviderRequest("CANDIDATE_RECOMMENDATION", input, "trace"));
         JsonNode output = mapper.readTree(result.output());
         assertEquals(2, output.path("candidates").size());
-        assertEquals("p1", output.path("candidates").get(0).path("profileId").asText());\n        assertEquals("a1", output.path("candidates").get(0).path("applicationId").asText());
+        assertEquals("p1", output.path("candidates").get(0).path("profileId").asText());
+        assertEquals("a1", output.path("candidates").get(0).path("applicationId").asText());
         assertEquals(100, output.path("candidates").get(0).path("matchScore").asInt());
     }
 
