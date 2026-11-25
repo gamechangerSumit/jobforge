@@ -33,6 +33,12 @@ public class AiGatewayService implements AiFacade {
     }
 
     @Override
+    public Map<?, ?> recommendCandidates(JsonNode trustedContext, UUID userId, String role, String traceId) {
+        return client.post("/internal/v1/ai/recommendations/candidates", trustedContext,
+                userId, role, traceId, null);
+    }
+
+    @Override
     public Map<?, ?> ownedRequest(UUID requestId, UUID userId, String role, String traceId) {
         return client.get("/internal/v1/ai/requests/" + requestId, userId, role, traceId);
     }
