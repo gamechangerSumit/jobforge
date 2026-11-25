@@ -207,7 +207,7 @@ public class AiController {
         profileContext.put("openToWork", profile.openToWork());
         profileContext.put("profileCompleteness", profile.completenessScore());
         profileContext.put("skills", skills);
-        profileContext.put("skillDetails", profile.skills() == null ? List.of() : profile.skills().stream()
+        profileContext.put("skillDetails", profile.skills() == null ? List.of() : profile.skills().stream().filter(skill -> skill.skill() != null && !skill.skill().isBlank())
                 .map(skill -> Map.of("name", AiContextTextSanitizer.sanitize(skill.skill()), "proficiency",
                         skill.proficiency() == null ? "UNSPECIFIED" : skill.proficiency(),
                         "years", skill.years() == null ? 0 : skill.years()))
