@@ -10,7 +10,6 @@ import com.jobforge.backend.profile.facade.ProfileFacade;
 import com.jobforge.backend.profile.facade.SeekerDataFacade;
 import com.jobforge.backend.search.facade.SearchFacade;
 import com.jobforge.backend.search.domain.JobSearchResult;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import com.jobforge.backend.shared.api.CursorMeta;
