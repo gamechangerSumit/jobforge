@@ -3,9 +3,16 @@ package com.jobforge.backend.ai.api;
 import com.jobforge.backend.ai.app.AiGatewayService;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jobforge.backend.company.facade.CompanyAccessFacade;
 import com.jobforge.backend.profile.facade.ProfileFacade;
+import com.jobforge.backend.profile.facade.SeekerDataFacade;
+import com.jobforge.backend.search.facade.SearchFacade;
+import com.jobforge.backend.search.domain.JobSearchResult;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import com.jobforge.backend.shared.api.CursorMeta;
 import com.jobforge.backend.shared.api.CursorResponse;
 import com.jobforge.backend.shared.error.ForbiddenException;
@@ -35,6 +42,9 @@ public class AiController {
     private final AiGatewayService gateway;
     private final ProfileFacade profiles;
     private final CompanyAccessFacade companies;
+    private final SeekerDataFacade seekerData;
+    private final SearchFacade search;
+    private final ObjectMapper mapper;
 
     public AiController(AiGatewayService gateway, ProfileFacade profiles, CompanyAccessFacade companies) {
         this.gateway = gateway;
@@ -151,7 +161,89 @@ public class AiController {
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         return payload(gateway.get("/internal/v1/ai/admin/usage", caller.id(), caller.role().name(), requestId));
     }
-    private static Object payload(Map<?, ?> envelope) {
+
+    @PostMapping("/recommendations/jobs")
+    @PreAuthorize("hasRole('JOB_SEEKER')")
+    public Object recommendJobs(@AuthenticationPrincipal AuthenticatedUser caller,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        ObjectNode request = trustedSeekerContext(caller.id());
+        return payload(gateway.post("/internal/v1/ai/recommendations/jobs", request,
+                caller.id(), caller.role().name(), requestId, null));
+    }
+
+    @PostMapping("/career-insights")
+    @PreAuthorize("hasRole('JOB_SEEKER')")
+    public Object careerInsights(@AuthenticationPrincipal AuthenticatedUser caller,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        ObjectNode request = trustedSeekerContext(caller.id());
+        return payload(gateway.post("/internal/v1/ai/career-insights", request,
+                caller.id(), caller.role().name(), requestId, null));
+    }
+
+    /**
+     * Build context only from the verified caller's own profile and public job search.
+     * Contact details, salary expectations, resume contents, and application notes are never sent to the AI provider.
+     */
+    private ObjectNode trustedSeekerContext(UUID userId) {
+        var profile = seekerData.candidate(userId).orElseThrow(() ->
+                ValidationFailedException.of("profile", "NOT_FOUND", "Complete your seeker profile before using career AI."));
+        List<String> skills = profile.skills() == null ? List.of()
+                : profile.skills().stream().map(SeekerDataFacade.SkillView::skill).filter(java.util.Objects::nonNull)
+                        .map(String::trim).filter(value -> !value.isBlank()).distinct().limit(20).toList();
+        String city = profile.location() == null ? null : profile.location().city();
+        String country = profile.location() == null ? null : profile.location().country();
+        List<JobSearchResult> matches = search.recommendForSeeker(skills, city, country, 10);
+
+        Map<String, Object> profileContext = new LinkedHashMap<>();
+        putIfPresent(profileContext, "headline", profile.headline());
+        putIfPresent(profileContext, "summary", profile.summary());
+        putIfPresent(profileContext, "currentTitle", profile.currentTitle());
+        profileContext.put("yearsExperience", profile.yearsExperience());
+        profileContext.put("openToWork", profile.openToWork());
+        profileContext.put("profileCompleteness", profile.completenessScore());
+        profileContext.put("skills", skills);
+        profileContext.put("skillDetails", profile.skills() == null ? List.of() : profile.skills().stream()
+                .map(skill -> Map.of("name", skill.skill(), "proficiency",
+                        skill.proficiency() == null ? "UNSPECIFIED" : skill.proficiency(),
+                        "years", skill.years() == null ? 0 : skill.years()))
+                .toList());
+        if (profile.location() != null) {
+            Map<String, Object> location = new LinkedHashMap<>();
+            putIfPresent(location, "city", profile.location().city());
+            putIfPresent(location, "state", profile.location().state());
+            putIfPresent(location, "country", profile.location().country());
+            profileContext.put("location", location);
+        }
+
+        List<Map<String, Object>> jobs = matches.stream().map(this::aiJobContext).toList();
+        ObjectNode request = mapper.createObjectNode();
+        request.set("context", mapper.valueToTree(Map.of("profile", profileContext, "jobs", jobs)));
+        return request;
+    }
+
+    private Map<String, Object> aiJobContext(JobSearchResult job) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("id", job.id().toString());
+        value.put("title", job.title());
+        value.put("skills", job.skills() == null ? List.of() : job.skills());
+        putIfPresent(value, "workMode", job.workMode());
+        putIfPresent(value, "employmentType", job.employmentType());
+        putIfPresent(value, "experienceLevel", job.experienceLevel());
+        if (job.company() != null) value.put("companyName", job.company().name());
+        if (job.location() != null) {
+            Map<String, Object> location = new LinkedHashMap<>();
+            putIfPresent(location, "city", job.location().city());
+            putIfPresent(location, "state", job.location().state());
+            putIfPresent(location, "country", job.location().country());
+            value.put("location", location);
+        }
+        return value;
+    }
+
+    private static void putIfPresent(Map<String, Object> target, String key, Object value) {
+        if (value != null && (!(value instanceof String text) || !text.isBlank())) target.put(key, value);
+    }
+\n    private static Object payload(Map<?, ?> envelope) {
         Object data = envelope == null ? null : envelope.get("data");
         return data == null ? Map.of() : data;
     }
