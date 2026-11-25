@@ -46,10 +46,14 @@ public class AiController {
     private final SearchFacade search;
     private final ObjectMapper mapper;
 
-    public AiController(AiGatewayService gateway, ProfileFacade profiles, CompanyAccessFacade companies) {
+    public AiController(AiGatewayService gateway, ProfileFacade profiles, CompanyAccessFacade companies,
+            SeekerDataFacade seekerData, SearchFacade search, ObjectMapper mapper) {
         this.gateway = gateway;
         this.profiles = profiles;
         this.companies = companies;
+        this.seekerData = seekerData;
+        this.search = search;
+        this.mapper = mapper;
     }
 
     @PostMapping("/job-drafts")
