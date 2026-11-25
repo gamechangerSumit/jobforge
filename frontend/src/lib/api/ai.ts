@@ -104,4 +104,4 @@ export interface AiCandidateRecommendations {
   meta: { provider: string };
 }
 export const getCandidateRecommendations = (jobId: string) =>
-  api.post<AiCandidateRecommendations>('/ai/recommendations/candidates', { jobId });
+  api.post<AiCandidateRecommendations>(`/recruiters/me/jobs/${jobId}/candidate-recommendations`);
