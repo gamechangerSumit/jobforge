@@ -180,7 +180,8 @@ services:
       REDIS_HOST: redis
       KAFKA_BOOTSTRAP_SERVERS: kafka:19092
       MAIL_HOST: mailpit
-      OPENAPI_ENABLED: ${OPENAPI_ENABLED:-false}\n      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+      OPENAPI_ENABLED: ${OPENAPI_ENABLED:-false}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
       STORAGE_LOCAL_PATH: /app/data/uploads
       S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
       S3_BUCKET: ${S3_BUCKET:-jobforge-uploads}
