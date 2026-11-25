@@ -22,7 +22,8 @@ jobs:
             echo "$v=ci-$(openssl rand -hex 16)" >> .env
           done
           sed -i '/^SEED_DEV_DATA=/d' .env
-          echo "SEED_DEV_DATA=true" >> .env\n          echo "OPENAPI_ENABLED=true" >> .env
+          echo "SEED_DEV_DATA=true" >> .env
+          echo "OPENAPI_ENABLED=true" >> .env
       - name: Start the full stack (app profile)
         run: docker compose --profile app up -d --build --wait --wait-timeout 600
       - name: Export generated OpenAPI contract and TypeScript client types
