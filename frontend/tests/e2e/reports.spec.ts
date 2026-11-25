@@ -78,7 +78,7 @@ test('admin sees the queue, opens a report and dismisses it', async ({ page }) =
   await expect(page.getByText('Backend Engineer')).toBeVisible();
   await expect(page.getByText('Asks candidates to pay a fee.')).toBeVisible();
 
-  await page.getByLabel('Decision').selectOption('DISMISS');
+  await page.getByLabel('Decision', { exact: true }).selectOption('DISMISS');
   await page.getByLabel(/Reason/).fill('Listing is legitimate after review.');
   await page.getByRole('button', { name: 'Save decision' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Decision saved' })).toBeVisible();
