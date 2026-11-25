@@ -35,7 +35,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
       <div className="jf-container flex h-[72px] items-center justify-between gap-4">
-        <Link href="/" onClick={close} className="flex shrink-0 items-center gap-2.5" aria-label="JobForge home">
+        <Link href="/" onClick={close} className="flex shrink-0 items-center gap-2.5" aria-label="JobForge.">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-700 text-sm font-black text-white shadow-lg shadow-violet-200">J</span>
           <span className="text-[1.2rem] font-black tracking-[-.055em] text-slate-950">JobForge<span className="text-violet-600">.</span></span>
         </Link>
