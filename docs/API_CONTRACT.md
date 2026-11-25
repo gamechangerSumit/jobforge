@@ -592,13 +592,13 @@ Response item: `{ "job": JobSummary, "score": 0.0-1.0, "reasons": ["Matches 4 of
 
 ### 14.6 Quota defaults (configurable via `/admin/ai/quota-policies`)
 
-| Role | Daily credits | Rate limit |
-|---|---|---|
-| RECRUITER | 100 | 10/min |
-| JOB_SEEKER | 20 | 10/min |
-| ADMIN | 500 | 20/min |
+| Role | Daily credits | Monthly credits | Rate limit |
+|---|---:|---:|---:|
+| RECRUITER | 100 | 3,000 | 10/min |
+| JOB_SEEKER | 20 | 600 | 10/min |
+| ADMIN | 500 | 15,000 | 20/min |
 
-Credit costs: `JOB_GENERATION` 5, `JOB_VALIDATION` 1, `JOB_RECOMMENDATION` 1, `CANDIDATE_RECOMMENDATION` 2, `CAREER_INSIGHT` 2. Daily reset at 00:00 UTC.
+Credit costs: `JOB_GENERATION` 5, `JOB_VALIDATION` 1, `JOB_RECOMMENDATION` 1, `CANDIDATE_RECOMMENDATION` 2, `CAREER_INSIGHT` 2. Daily reset at 00:00 UTC; monthly reset on the first day of each month at 00:00 UTC. Effective remaining credits are the minimum of daily and monthly remaining credits. The response `period` identifies which limit currently binds. Monthly defaults are 30 times the documented daily allowance.
 
 ## 15. Internal Contract: backend ⇄ ai-service (never exposed publicly)
 

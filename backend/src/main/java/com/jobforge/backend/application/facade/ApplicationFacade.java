@@ -44,6 +44,9 @@ public interface ApplicationFacade {
      */
     InterviewContext prepareForInterview(AuthenticatedUser recruiter, UUID applicationId);
 
+    /** Ids of applications submitted to one job (used for bounded candidate matching). */
+    List<UUID> applicationIdsOfJob(UUID jobId);
+
     /** Ids of every application to a job of the company (used to scope interview lists). */
     List<UUID> applicationIdsOfCompany(UUID companyId);
 

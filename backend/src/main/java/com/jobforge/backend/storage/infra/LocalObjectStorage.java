@@ -7,10 +7,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /** Local-disk adapter under {@code jobforge.storage.local-dir}/media (zero cost). */
 @Component
+@ConditionalOnProperty(name = "jobforge.storage.provider", havingValue = "local", matchIfMissing = true)
 public class LocalObjectStorage implements ObjectStorage {
 
     private final Path root;

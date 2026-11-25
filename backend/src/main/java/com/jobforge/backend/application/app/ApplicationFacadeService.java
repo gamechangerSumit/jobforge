@@ -95,6 +95,12 @@ public class ApplicationFacadeService implements ApplicationFacade {
 
     @Override
     @Transactional(readOnly = true)
+    public List<UUID> applicationIdsOfJob(UUID jobId) {
+        return applications.idsByJobs(List.of(jobId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<UUID> applicationIdsOfCompany(UUID companyId) {
         return applications.idsByJobs(jobs.jobIdsOfCompany(companyId));
     }

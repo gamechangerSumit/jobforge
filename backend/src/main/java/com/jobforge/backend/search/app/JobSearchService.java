@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class JobSearchService {
+public class JobSearchService implements com.jobforge.backend.search.facade.SearchFacade {
 
     private static final int SIMILAR_LIMIT = 10;
 
@@ -56,6 +56,28 @@ public class JobSearchService {
         List<JobSearchResult> items = searchProvider.similar(jobId, SIMILAR_LIMIT)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found."));
         return withFlags(items, seekerUserId);
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.jobforge.backend.search.facade.SearchFacade.RecommendationJob> recommendForSeeker(List<String> skills, String city, String country, int limit) {
+        int boundedLimit = Math.max(1, Math.min(limit, 20));
+        JobSearchFilter filter = new JobSearchFilter(
+                null, city, country, null, null, null, null, null, null,
+                skills == null ? List.of() : skills.stream().filter(java.util.Objects::nonNull)
+                        .map(String::trim).filter(value -> !value.isBlank()).distinct().limit(20).toList(),
+                null, null, com.jobforge.backend.search.domain.JobSearchSort.RELEVANCE, 0, boundedLimit);
+        return searchProvider.search(filter).items().stream().map(job ->
+                new com.jobforge.backend.search.facade.SearchFacade.RecommendationJob(
+                        job.id().toString(), job.title(),
+                        job.company() == null ? null : job.company().name(),
+                        job.workMode(), job.employmentType(), job.experienceLevel(),
+                        job.skills() == null ? List.of() : job.skills(),
+                        job.location() == null ? null : job.location().city(),
+                        job.location() == null ? null : job.location().state(),
+                        job.location() == null ? null : job.location().country()))
+                .toList();
     }
 
     private List<JobSearchResult> withFlags(List<JobSearchResult> items, UUID seekerUserId) {

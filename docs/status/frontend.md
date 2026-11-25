@@ -81,3 +81,31 @@ Recruiter and seeker interview pages, schedule/reschedule/cancel/complete/respon
 - Post and comment bodies render as plain text; links come only from https metadata. Server errors map back to form fields.
 - Tests written, NOT RUN: `tests/unit/community-schema.test.ts`, `tests/components/PostCard.test.tsx`, updated `tests/unit/report-rules.test.ts`. No Playwright e2e added.
 - Fix pass: Playwright spec `tests/e2e/community.spec.ts` (mocked API; NOT RUN); notification deep links for community types (`postId` -> post, USER_FOLLOWED -> profile) with a unit test.
+
+
+## Revision 9 — visual refresh and AI Job Studio (static implementation, unverified)
+- Refreshed global visual tokens, typography, focus-visible states, reduced-motion behavior, card/button primitives, footer and metadata.
+- Redesigned public landing page with responsive hero, product-value sections and live job search placement.
+- Rebuilt header with responsive mobile navigation, role-aware links, active route state, notification bell and account menu. Added recruiter AI Job Studio navigation.
+- Added typed AI API client and recruiter AI Job Studio UI: role brief, dynamic skill list, tone/work-mode/experience selectors, generated draft preview, quality issues, quota display and copy action.
+- AI generation UI is connected to the newly added backend gateway; save-to-job flow is intentionally not shown until server-side AI request ownership/consumption is wired.
+- Not run: `pnpm typecheck`, `pnpm lint`, `pnpm test`, or Playwright. Verify Next.js route compilation and component types before merge.
+
+
+## Revision 10 — AI Studio polish follow-up (static implementation, unverified)
+- AI Job Studio now receives the standard backend response envelope and displays generation result, quality and quota information through the typed client.
+- Added recruiter navigation entry and admin AI quota backend endpoints are now available for a future admin UI.
+- Draft PR #10 opened against develop for CI/review. No frontend typecheck, lint, tests or production build has been run here.
+
+
+## Revision 11 — admin AI quota dashboard (static implementation, unverified)
+- Added `/admin/ai` with role/period quota policy editing, active toggles, per-minute request limits, save feedback and aggregate 30-day AI usage table.
+- Added typed quota policy/usage methods and admin navigation link. Backend routes enforce ADMIN at method and internal-service boundaries.
+- Not run: frontend typecheck/lint/tests/build; add component tests and verify admin payload shape in integration.
+
+
+## Revision 12 — AI draft-to-job handoff (static implementation, unverified)
+- AI Job Studio now links into the existing recruiter job editor with the generated request ID.
+- Job editor fetches the owner-scoped AI request detail, verifies operation/status in UI, pre-fills title, description, requirements, benefits, skills, work mode and experience, and submits the AI request ID with the normal create-job payload.
+- AI request ID is hidden from manual editing; job editor remains editable and save creates a draft, never auto-publishes.
+- Not run: frontend typecheck/lint/tests/build or Playwright. Confirm form mapping and loading/error states in CI.

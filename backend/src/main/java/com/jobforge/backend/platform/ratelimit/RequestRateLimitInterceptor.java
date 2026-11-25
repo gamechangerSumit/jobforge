@@ -29,6 +29,9 @@ public class RequestRateLimitInterceptor implements HandlerInterceptor {
         if (path.startsWith("/auth/") && !path.equals("/auth/me") && !path.equals("/auth/refresh")) {
             return RateLimitClass.AUTH;
         }
+        if (path.startsWith("/ai/")) {
+            return RateLimitClass.AI;
+        }
         if (isCommunityWrite(method, path)) {
             return RateLimitClass.WRITE_COMMUNITY;
         }

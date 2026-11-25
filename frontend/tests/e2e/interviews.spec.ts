@@ -60,7 +60,7 @@ test('seeker sees an interview and confirms it', async ({ page }) => {
   await expect(page.getByText('Internal notes')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Confirm' }).click();
-  await expect(page.getByText('CONFIRMED').first()).toBeVisible();
+  await expect(page.getByTestId('interview-status')).toHaveText('CONFIRMED');
   expect(calls).toEqual([{ method: 'POST', path: '/interviews/i1/respond', body: { response: 'CONFIRM' } }]);
 });
 
@@ -82,7 +82,7 @@ test('recruiter cancels an interview with a reason', async ({ page }) => {
   await page.getByRole('button', { name: 'Cancel interview' }).click();
   await page.getByRole('dialog').getByRole('textbox').fill('Position on hold');
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm' }).click();
-  await expect(page.getByText('CANCELLED').first()).toBeVisible();
+  await expect(page.getByTestId('interview-status')).toHaveText('CANCELLED');
   expect(calls[0]).toMatchObject({ path: '/interviews/i1/cancel', body: { reason: 'Position on hold' } });
 });
 

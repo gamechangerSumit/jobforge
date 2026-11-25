@@ -67,6 +67,9 @@ public class SecurityConfig {
                     // instead of being re-secured, which used to turn every unmapped URL into a misleading 403.
                     auth.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll();
 
+                    auth.requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml")
+                            .permitAll();
+
                     auth.requestMatchers(
                                     HttpMethod.GET,
                                     "/actuator/health",

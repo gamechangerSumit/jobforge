@@ -11,5 +11,5 @@ const styles: Record<string, string> = {
 
 /** Unknown future statuses fall back to a neutral badge (clients must tolerate new enum values). */
 export function InterviewStatusBadge({ status }: { status: InterviewStatus | string }) {
-  return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status] ?? 'bg-slate-100 text-slate-700'}`}>{status.replaceAll('_', ' ')}</span>;
+  return <span data-testid="interview-status" className={`rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status] ?? 'bg-slate-100 text-slate-700'}`}>{status.replaceAll('_', ' ')}</span>;
 }
