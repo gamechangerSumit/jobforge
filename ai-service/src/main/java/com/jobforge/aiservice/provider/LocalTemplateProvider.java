@@ -275,20 +275,42 @@ public class LocalTemplateProvider implements AIProvider {
         );
     }
 
-    private ProviderResult recommendJobs(
-            JsonNode input
-    ) throws Exception {
-
-        return new ProviderResult(
-                objectMapper.writeValueAsString(
-                        java.util.Map.of(
-                                "recommendations",
-                                List.of()
-                        )
-                ),
-                0,
-                0
-        );
+    private ProviderResult recommendJobs(JsonNode input) throws Exception {
+        JsonNode context = input.path("context");
+        JsonNode profile = context.path("profile");
+        JsonNode jobs = context.path("jobs");
+        java.util.Set<String> candidateSkills = normalizedSkills(profile.path("skills"));
+        List<java.util.Map<String, Object>> recommendations = new ArrayList<>();
+        if (jobs.isArray()) {
+            jobs.forEach(job -> {
+                List<String> required = textValues(job.path("skills"));
+                List<String> matched = required.stream()
+                        .filter(skill -> candidateSkills.contains(normalize(skill))).distinct().toList();
+                List<String> missing = required.stream()
+                        .filter(skill -> !candidateSkills.contains(normalize(skill))).distinct().toList();
+                int score = required.isEmpty() ? 35
+                        : (int) Math.round(35 + 65.0 * matched.size() / required.size());
+                String title = job.path("title").asText("Open role");
+                String company = job.path("companyName").asText("");
+                String reason = matched.isEmpty()
+                        ? "This role is in your searchable location; compare its requirements with your current skills."
+                        : "Your profile matches " + matched.size() + " listed skill"
+                                + (matched.size() == 1 ? "" : "s") + ": " + String.join(", ", matched) + ".";
+                java.util.Map<String, Object> item = new java.util.LinkedHashMap<>();
+                item.put("jobId", job.path("id").asText(""));
+                item.put("title", title);
+                item.put("companyName", company);
+                item.put("matchScore", score);
+                item.put("matchedSkills", matched);
+                item.put("missingSkills", missing);
+                item.put("reason", reason);
+                recommendations.add(item);
+            });
+        }
+        recommendations.sort((a, b) -> Integer.compare((Integer) b.get("matchScore"), (Integer) a.get("matchScore")));
+        String output = objectMapper.writeValueAsString(java.util.Map.of(
+                "recommendations", recommendations.stream().limit(10).toList()));
+        return new ProviderResult(output, 0, 0);
     }
 
     private ProviderResult recommendCandidates(JsonNode input) throws Exception {
@@ -299,46 +321,65 @@ public class LocalTemplateProvider implements AIProvider {
         );
     }
 
-    private ProviderResult careerInsights(
-            JsonNode input
-    ) throws Exception {
+    private ProviderResult careerInsights(JsonNode input) throws Exception {
+        JsonNode context = input.path("context");
+        JsonNode profile = context.path("profile");
+        JsonNode jobs = context.path("jobs");
+        java.util.Set<String> candidateSkills = normalizedSkills(profile.path("skills"));
+        List<String> suggestions = new ArrayList<>();
+        if (profile.path("headline").asText("").isBlank()) suggestions.add("Add a clear professional headline.");
+        if (profile.path("summary").asText("").trim().length() < 50) suggestions.add("Write a 50+ character professional summary with measurable outcomes.");
+        if (profile.path("currentTitle").asText("").isBlank()) suggestions.add("Add your current or most recent job title.");
+        if (profile.path("location").path("city").asText("").isBlank()) suggestions.add("Add your preferred city to improve local job matching.");
+        if (candidateSkills.size() < 3) suggestions.add("Add at least three relevant skills and set their proficiency levels.");
+        if (profile.path("yearsExperience").isMissingNode() || profile.path("yearsExperience").isNull()) {
+            suggestions.add("Add your years of experience so employers can assess role fit.");
+        }
 
-        String output =
-                objectMapper.writeValueAsString(
-                        java.util.Map.of(
-                                "profileStrength",
-                                java.util.Map.of(
-                                        "score",
-                                        50,
+        java.util.Map<String, Integer> demand = new java.util.HashMap<>();
+        if (jobs.isArray()) jobs.forEach(job -> textValues(job.path("skills")).forEach(skill ->
+                demand.merge(skill, 1, Integer::sum)));
+        List<java.util.Map<String, Object>> topSkills = demand.entrySet().stream()
+                .sorted(java.util.Map.Entry.<String, Integer>comparingByValue().reversed()
+                        .thenComparing(java.util.Map.Entry.comparingByKey(String.CASE_INSENSITIVE_ORDER)))
+                .limit(5)
+                .map(entry -> java.util.Map.<String, Object>of("skill", entry.getKey(), "jobCount", entry.getValue()))
+                .toList();
+        List<java.util.Map<String, Object>> gaps = demand.entrySet().stream()
+                .filter(entry -> !candidateSkills.contains(normalize(entry.getKey())))
+                .sorted(java.util.Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(5)
+                .map(entry -> java.util.Map.<String, Object>of("skill", entry.getKey(), "jobsMentioningSkill", entry.getValue()))
+                .toList();
+        int completeness = profile.path("profileCompleteness").asInt(0);
+        int strength = Math.max(0, Math.min(100, completeness));
+        List<String> nextSteps = new ArrayList<>(suggestions);
+        if (!gaps.isEmpty()) nextSteps.add("Prioritize one in-demand skill from the gap list and add a practical project to demonstrate it.");
+        if (nextSteps.isEmpty()) nextSteps.add("Keep your profile current and tailor each application to the role's required skills.");
+        String output = objectMapper.writeValueAsString(java.util.Map.of(
+                "profileStrength", java.util.Map.of("score", strength, "suggestions", suggestions),
+                "skillGaps", gaps,
+                "marketSnapshot", java.util.Map.of("topSkills", topSkills, "sampledJobs", jobs.isArray() ? jobs.size() : 0),
+                "nextSteps", nextSteps));
+        return new ProviderResult(output, 0, 0);
+    }
 
-                                        "suggestions",
-                                        List.of(
-                                                "Add a professional summary.",
-                                                "Add more relevant skills."
-                                        )
-                                ),
+    private static java.util.Set<String> normalizedSkills(JsonNode node) {
+        java.util.Set<String> values = new java.util.HashSet<>();
+        textValues(node).forEach(value -> values.add(normalize(value)));
+        return values;
+    }
 
-                                "skillGaps",
-                                List.of(),
+    private static List<String> textValues(JsonNode node) {
+        List<String> values = new ArrayList<>();
+        if (node != null && node.isArray()) node.forEach(value -> {
+            if (value.isTextual() && !value.asText().isBlank()) values.add(value.asText().trim());
+            else if (value.isObject() && value.path("name").isTextual()) values.add(value.path("name").asText().trim());
+        });
+        return values;
+    }
 
-                                "marketSnapshot",
-                                java.util.Map.of(
-                                        "topSkills",
-                                        List.of()
-                                ),
-
-                                "nextSteps",
-                                List.of(
-                                        "Complete your profile.",
-                                        "Add measurable experience."
-                                )
-                        )
-                );
-
-        return new ProviderResult(
-                output,
-                0,
-                0
-        );
+    private static String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase(java.util.Locale.ROOT);
     }
 }
