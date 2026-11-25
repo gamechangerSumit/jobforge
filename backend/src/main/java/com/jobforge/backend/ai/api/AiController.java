@@ -218,7 +218,7 @@ public class AiController {
         }
         var jobSummary = jobs.getSummaries(List.of(jobId), Viewer.ANONYMOUS).stream().findFirst()
                 .orElseThrow(() -> new com.jobforge.backend.shared.error.ResourceNotFoundException("Published job not found."));
-        var contexts = applications.contexts(applications.applicationIdsOfCompany(membership.companyId()));
+        var contexts = applications.contexts(applications.applicationIdsOfJob(jobId));
         List<Map<String, Object>> candidateContext = contexts.values().stream()
                 .filter(context -> jobId.equals(context.jobId()) && !context.closed())
                 .map(context -> {
