@@ -11,7 +11,6 @@ import com.jobforge.backend.profile.facade.ProfileFacade;
 import com.jobforge.backend.profile.facade.SeekerDataFacade;
 import com.jobforge.backend.shared.error.ForbiddenException;
 import com.jobforge.backend.shared.error.ResourceNotFoundException;
-import com.jobforge.backend.shared.error.ValidationFailedException;
 import com.jobforge.backend.shared.security.AuthenticatedUser;
 import java.util.LinkedHashMap;
 import java.util.List;
