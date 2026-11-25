@@ -329,7 +329,7 @@ services:
   # ---------------------------------------------------------------------------
   minio:
     profiles: ["storage"]
-    image: minio/minio:${MINIO_IMAGE_TAG:-latest}
+    image: quay.io/minio/minio:${MINIO_IMAGE_TAG:-latest}
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
